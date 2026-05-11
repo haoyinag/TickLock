@@ -32,6 +32,8 @@
 
   let uiScale = $state(1.0);
   let isCompact = $state(false);
+  let hoverReadyForUnlock = $state(false);
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Extra bottom padding added to <main> in compact mode.  Shifts the
   // dial upward so the whitespace sits at the bottom rather than being
@@ -56,6 +58,44 @@
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
+  });
+
+  const overlayCompact = $derived(isCompact || $settings.overlay_mode_enabled);
+
+  function emitOverlayHoverReady(ready: boolean) {
+    window.dispatchEvent(new CustomEvent<boolean>('overlay:hover-ready', { detail: ready }));
+  }
+
+  function clearHoverUnlockTimer() {
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+  }
+
+  function onOverlayPointerEnter() {
+    if (!$settings.overlay_mode_enabled) return;
+    clearHoverUnlockTimer();
+    hoverReadyForUnlock = false;
+    emitOverlayHoverReady(false);
+    hoverTimer = setTimeout(() => {
+      hoverReadyForUnlock = true;
+      emitOverlayHoverReady(true);
+    }, 3000);
+  }
+
+  function onOverlayPointerLeave() {
+    clearHoverUnlockTimer();
+    hoverReadyForUnlock = false;
+    emitOverlayHoverReady(false);
+  }
+
+  $effect(() => {
+    if (!$settings.overlay_mode_enabled) {
+      clearHoverUnlockTimer();
+      hoverReadyForUnlock = false;
+      emitOverlayHoverReady(false);
+    }
   });
 
   async function startResize(direction: string) {
@@ -153,6 +193,8 @@
     })();
 
     return () => {
+      clearHoverUnlockTimer();
+      emitOverlayHoverReady(false);
       for (const fn of cleanups) fn();
     };
   });
@@ -160,7 +202,7 @@
 
 <!-- Resize handles — invisible edge/corner strips for decorations-free windows.
      Not needed on macOS where native resizing is provided by decorations:true. -->
-{#if !isMac}
+{#if !isMac && !$settings.overlay_mode_enabled}
   <!-- N -->
   <div class="rh rh-n" onmousedown={() => startResize('North')} role="none"></div>
   <!-- S -->
@@ -179,10 +221,20 @@
   <div class="rh rh-sw" onmousedown={() => startResize('SouthWest')} role="none"></div>
 {/if}
 
-<div class="app">
-  <Titlebar />
-  <main class:compact={isCompact}>
-    <Timer {isCompact} {uiScale} />
+<div
+  class="app"
+  class:overlay={$settings.overlay_mode_enabled}
+  style="opacity: {$settings.window_opacity};"
+  role="presentation"
+  onpointerenter={onOverlayPointerEnter}
+  onpointerleave={onOverlayPointerLeave}
+>
+  <Titlebar overlayMode={$settings.overlay_mode_enabled} />
+  <main class:compact={overlayCompact}>
+    <Timer isCompact={overlayCompact} {uiScale} />
+    {#if $settings.overlay_mode_enabled && hoverReadyForUnlock}
+      <div class="unlock-tip">Right click to {$settings.overlay_locked_clickthrough ? 'unlock' : 'lock'}</div>
+    {/if}
   </main>
 </div>
 
@@ -196,17 +248,38 @@
     animation: app-fade-in 0.4s var(--transition-slow) both;
   }
 
+  .app.overlay {
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
   main {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    position: relative;
   }
 
   main.compact {
     /* Bottom padding provides breathing room below the mini controls. */
     padding-bottom: 8px;
+  }
+
+  .unlock-tip {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--color-foreground);
+    background: color-mix(in oklch, var(--color-background) 76%, black 24%);
+    border: 1px solid color-mix(in oklch, var(--color-foreground) 22%, transparent);
+    border-radius: 999px;
+    padding: 3px 8px;
+    pointer-events: none;
+    white-space: nowrap;
   }
 
   /* ---------------------------------------------------------------------------

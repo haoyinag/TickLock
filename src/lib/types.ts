@@ -56,6 +56,9 @@ export interface Settings {
   local_shortcut_volume_up: string;
   local_shortcut_mute: string;
   local_shortcut_fullscreen: string;
+  window_opacity: number;
+  overlay_mode_enabled: boolean;
+  overlay_locked_clickthrough: boolean;
 }
 
 /** Returned by `check_update` — describes an available update. */

@@ -65,6 +65,12 @@ pub struct Settings {
     pub window_width: Option<u32>,
     /// Last known window height (physical pixels). `None` = use OS default.
     pub window_height: Option<u32>,
+    /// Main window opacity in the 0.2–1.0 range.
+    pub window_opacity: f32,
+    /// Floating overlay mode toggle for the main window.
+    pub overlay_mode_enabled: bool,
+    /// When true, the overlay is locked and click-through is enabled.
+    pub overlay_locked_clickthrough: bool,
 }
 
 impl Default for Settings {
@@ -124,6 +130,9 @@ impl Default for Settings {
             window_y: None,
             window_width: None,
             window_height: None,
+            window_opacity: 1.0,
+            overlay_mode_enabled: false,
+            overlay_locked_clickthrough: true,
         }
     }
 }
@@ -249,6 +258,13 @@ pub fn load(conn: &Connection) -> Result<Settings> {
         window_y: parse_opt_i32(&map, "window_y"),
         window_width: parse_opt_u32(&map, "window_width"),
         window_height: parse_opt_u32(&map, "window_height"),
+        window_opacity: parse_f32(&map, "window_opacity", d.window_opacity).clamp(0.2, 1.0),
+        overlay_mode_enabled: parse_bool(&map, "overlay_mode_enabled", d.overlay_mode_enabled),
+        overlay_locked_clickthrough: parse_bool(
+            &map,
+            "overlay_locked_clickthrough",
+            d.overlay_locked_clickthrough,
+        ),
     })
 }
 
@@ -292,6 +308,12 @@ fn parse_opt_i32(map: &HashMap<String, String>, key: &str) -> Option<i32> {
 
 fn parse_opt_u32(map: &HashMap<String, String>, key: &str) -> Option<u32> {
     map.get(key)?.parse().ok()
+}
+
+fn parse_f32(map: &HashMap<String, String>, key: &str, default: f32) -> f32 {
+    map.get(key)
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
 }
 
 // ---------------------------------------------------------------------------

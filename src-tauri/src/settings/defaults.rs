@@ -39,4 +39,7 @@ pub const DEFAULTS: &[(&str, &str)] = &[
     ("local_shortcut_volume_up", "ArrowUp"),
     ("local_shortcut_mute", "m"),
     ("local_shortcut_fullscreen", "F11"),
+    ("window_opacity", "1.0"),
+    ("overlay_mode_enabled", "false"),
+    ("overlay_locked_clickthrough", "true"),
 ];

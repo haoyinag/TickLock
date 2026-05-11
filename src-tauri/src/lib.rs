@@ -30,7 +30,8 @@ use commands::{
     stats_get_detailed, stats_get_heatmap,
     themes_list,
     timer_get_state, timer_reset, timer_restart_round, timer_skip, timer_toggle,
-    window_set_visibility,
+    window_set_clickthrough, window_set_mode, window_set_opacity, window_set_visibility,
+    window_toggle_lock,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -282,6 +283,16 @@ pub fn run() {
             if initial_settings.always_on_top {
                 let _ = main_window.set_always_on_top(true);
             }
+            if initial_settings.overlay_mode_enabled {
+                let _ = main_window.set_size(tauri::PhysicalSize::new(220, 220));
+                let _ = main_window.set_resizable(false);
+                let _ = main_window.set_always_on_top(true);
+            } else {
+                let _ = main_window.set_resizable(true);
+            }
+            let _ = main_window.set_ignore_cursor_events(
+                initial_settings.overlay_mode_enabled && initial_settings.overlay_locked_clickthrough,
+            );
 
             // Restore saved window position/size if all four values are present and
             // the saved rectangle still intersects at least one connected monitor.
@@ -386,6 +397,10 @@ pub fn run() {
             stats_get_heatmap,
             // Window
             window_set_visibility,
+            window_set_opacity,
+            window_set_clickthrough,
+            window_set_mode,
+            window_toggle_lock,
             // Shortcuts
             shortcuts_reload,
             // Audio

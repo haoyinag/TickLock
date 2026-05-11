@@ -44,6 +44,12 @@ export const notificationShow = (title: string, body: string) =>
 
 export const setWindowVisibility = (visible: boolean) =>
   invoke<void>('window_set_visibility', { visible });
+export const setWindowOpacity = (opacity: number) => invoke<void>('window_set_opacity', { opacity });
+export const setWindowClickthrough = (enabled: boolean) =>
+  invoke<void>('window_set_clickthrough', { enabled });
+export const setWindowMode = (mode: 'overlay' | 'window') =>
+  invoke<void>('window_set_mode', { mode });
+export const toggleWindowLock = () => invoke<Settings>('window_toggle_lock');
 
 // --- Audio commands ---
 

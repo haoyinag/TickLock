@@ -29,8 +29,10 @@
   });
 
   let localPort = $state(String($settings.websocket_port));
+  let localOpacity = $state(Math.round($settings.window_opacity * 100));
   $effect(() => {
     localPort = String($settings.websocket_port);
+    localOpacity = Math.round($settings.window_opacity * 100);
   });
 
   let langOpen = $state(false);
@@ -72,6 +74,23 @@
 
   async function toggle(dbKey: string, current: boolean) {
     const updated = await setSetting(dbKey, current ? 'false' : 'true');
+    settings.set(updated);
+  }
+
+  async function setOverlayMode(enabled: boolean) {
+    const updated = await setSetting('overlay_mode_enabled', enabled ? 'true' : 'false');
+    settings.set(updated);
+  }
+
+  async function setOverlayLock(enabled: boolean) {
+    const updated = await setSetting('overlay_locked_clickthrough', enabled ? 'true' : 'false');
+    settings.set(updated);
+  }
+
+  async function setOpacity(value: number) {
+    const clamped = Math.max(20, Math.min(100, value));
+    localOpacity = clamped;
+    const updated = await setSetting('window_opacity', String(clamped / 100));
     settings.set(updated);
   }
 
@@ -237,6 +256,38 @@
     />
   {/if}
 
+  <SettingsToggle
+    label="Floating ball mode"
+    description="Switch between normal window and floating overlay mode."
+    checked={$settings.overlay_mode_enabled}
+    onclick={() => setOverlayMode(!$settings.overlay_mode_enabled)}
+  />
+  {#if $settings.overlay_mode_enabled}
+    <SettingsToggle
+      label="Lock click-through"
+      description="When enabled, clicks pass through to underlying apps."
+      checked={$settings.overlay_locked_clickthrough}
+      onclick={() => setOverlayLock(!$settings.overlay_locked_clickthrough)}
+    />
+  {/if}
+
+  <div class="row">
+    <span class="label">Window Opacity</span>
+    <div class="opacity-editor">
+      <input
+        type="range"
+        min="20"
+        max="100"
+        value={localOpacity}
+        oninput={(e) => {
+          const value = Number((e.currentTarget as HTMLInputElement).value);
+          setOpacity(value);
+        }}
+      />
+      <span class="opacity-value">{localOpacity}%</span>
+    </div>
+  </div>
+
   <div class="group-heading">{m.system_group_data()}</div>
 
   <div class="data-group">
@@ -327,6 +378,23 @@
     opacity: 0.65;
     padding: 16px 20px;
     line-height: 1.6;
+  }
+
+  .opacity-editor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .opacity-editor input[type='range'] {
+    width: 130px;
+  }
+
+  .opacity-value {
+    font-size: 0.8rem;
+    color: var(--color-foreground-darker, var(--color-foreground));
+    min-width: 44px;
+    text-align: right;
   }
 
   code {

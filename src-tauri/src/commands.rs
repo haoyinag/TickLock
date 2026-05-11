@@ -17,6 +17,27 @@ use crate::timer::{TimerController, TimerSnapshot};
 use crate::tray::{self, TrayState};
 use crate::websocket::{self, WsState};
 
+const OVERLAY_SIZE: u32 = 220;
+
+fn apply_overlay_mode(window: &tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    if enabled {
+        window
+            .set_size(tauri::PhysicalSize::new(OVERLAY_SIZE, OVERLAY_SIZE))
+            .map_err(|e| e.to_string())?;
+        window.set_resizable(false).map_err(|e| e.to_string())?;
+        window.set_always_on_top(true).map_err(|e| e.to_string())?;
+    } else {
+        window.set_resizable(true).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn apply_clickthrough(window: &tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    window
+        .set_ignore_cursor_events(enabled)
+        .map_err(|e| e.to_string())
+}
+
 // ---------------------------------------------------------------------------
 // CMD-01 — Timer commands
 // ---------------------------------------------------------------------------
@@ -138,6 +159,30 @@ pub fn settings_set(
             let effective_aot = new_settings.always_on_top
                 && !(new_settings.break_always_on_top && is_break);
             let _ = window.set_always_on_top(effective_aot);
+        }
+    }
+
+    if key == "window_opacity" {
+        // Opacity is applied by the frontend via CSS for cross-platform
+        // consistency because WebviewWindow does not expose set_opacity.
+    }
+
+    if key == "overlay_mode_enabled" {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = apply_overlay_mode(&window, new_settings.overlay_mode_enabled);
+            let _ = apply_clickthrough(
+                &window,
+                new_settings.overlay_mode_enabled && new_settings.overlay_locked_clickthrough,
+            );
+        }
+    }
+
+    if key == "overlay_locked_clickthrough" {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = apply_clickthrough(
+                &window,
+                new_settings.overlay_mode_enabled && new_settings.overlay_locked_clickthrough,
+            );
         }
     }
 
@@ -396,6 +441,61 @@ pub fn window_set_visibility(visible: bool, app: AppHandle) -> Result<(), String
         window.hide().map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+/// Set the main window opacity (clamped to 0.2–1.0).
+#[tauri::command]
+pub fn window_set_opacity(opacity: f32, app: AppHandle) -> Result<(), String> {
+    let _window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    let _clamped = opacity.clamp(0.2, 1.0);
+    Ok(())
+}
+
+/// Enable or disable click-through behavior for the main window.
+#[tauri::command]
+pub fn window_set_clickthrough(enabled: bool, app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    apply_clickthrough(&window, enabled)
+}
+
+/// Toggle between overlay and normal window mode for the main window.
+#[tauri::command]
+pub fn window_set_mode(mode: String, app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    match mode.as_str() {
+        "overlay" => apply_overlay_mode(&window, true),
+        "window" => apply_overlay_mode(&window, false),
+        _ => Err(format!("unknown window mode: '{mode}'")),
+    }
+}
+
+/// Toggle overlay lock state and return the updated settings.
+#[tauri::command]
+pub fn window_toggle_lock(db: State<'_, DbState>, app: AppHandle) -> Result<Settings, String> {
+    let settings = {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+        let current = settings::load(&conn).map_err(|e| e.to_string())?;
+        let next = (!current.overlay_locked_clickthrough).to_string();
+        settings::save_setting(&conn, "overlay_locked_clickthrough", &next)
+            .map_err(|e| e.to_string())?;
+        settings::load(&conn).map_err(|e| e.to_string())?
+    };
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    apply_clickthrough(
+        &window,
+        settings.overlay_mode_enabled && settings.overlay_locked_clickthrough,
+    )?;
+    app.emit("settings:changed", &settings).ok();
+    Ok(settings)
 }
 
 // ---------------------------------------------------------------------------

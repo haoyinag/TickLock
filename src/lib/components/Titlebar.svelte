@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getCurrentWebviewWindow, WebviewWindow } from '@tauri-apps/api/webviewWindow';
-  import { setWindowVisibility } from '$lib/ipc';
+  import { setSetting, setWindowVisibility } from '$lib/ipc';
   import { settings } from '$lib/stores/settings';
   import { isMac } from '$lib/utils/platform';
   import Tooltip from './Tooltip.svelte';
   import * as m from '$paraglide/messages.js';
+
+  interface Props {
+    overlayMode?: boolean;
+  }
+
+  let { overlayMode = false }: Props = $props();
 
   let maximized = $state(false);
   let suppressTitlebarHover = $state(false);
@@ -96,6 +102,11 @@
     }
   }
 
+  async function toggleWindowMode() {
+    const updated = await setSetting('overlay_mode_enabled', overlayMode ? 'false' : 'true');
+    settings.set(updated);
+  }
+
   function toggleMaximize() {
     getCurrentWebviewWindow().toggleMaximize();
   }
@@ -178,7 +189,12 @@
   </Tooltip>
 {/snippet}
 
-<nav class="titlebar" class:suppress-hover={suppressTitlebarHover} data-tauri-drag-region>
+<nav
+  class="titlebar"
+  class:suppress-hover={suppressTitlebarHover}
+  class:overlay={overlayMode}
+  data-tauri-drag-region
+>
   <!-- Left: settings + stats buttons on Linux/Windows. On macOS the traffic
        lights live here; the action buttons move to the right side instead. -->
   {#if !isMac}
@@ -189,9 +205,19 @@
   <!-- Right: settings + stats buttons on macOS, window controls on Linux/Windows. -->
   <div class="controls">
     {#if isMac}
+      <button class="btn-icon" onclick={toggleWindowMode} aria-label="Toggle window mode">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.3" />
+        </svg>
+      </button>
       {@render statsBtn()}
       {@render settingsBtn()}
     {:else}
+      <button class="btn-icon" onclick={toggleWindowMode} aria-label="Toggle window mode">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.3" />
+        </svg>
+      </button>
       <button class="btn-icon" onclick={minimize} aria-label="Minimize">
         <svg width="12" height="12" viewBox="0 0 12 12">
           <line
@@ -205,73 +231,75 @@
           />
         </svg>
       </button>
-      <button
-        class="btn-icon"
-        onclick={toggleMaximize}
-        aria-label={maximized ? 'Restore' : 'Maximize'}
-      >
-        {#if maximized}
+      {#if !overlayMode}
+        <button
+          class="btn-icon"
+          onclick={toggleMaximize}
+          aria-label={maximized ? 'Restore' : 'Maximize'}
+        >
+          {#if maximized}
+            <svg width="12" height="12" viewBox="0 0 12 12">
+              <rect
+                x="3"
+                y="1"
+                width="8"
+                height="8"
+                rx="1"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+              <path
+                d="M1 4 L1 11 L8 11"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          {:else}
+            <svg width="12" height="12" viewBox="0 0 12 12">
+              <rect
+                x="1"
+                y="1"
+                width="10"
+                height="10"
+                rx="1"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+            </svg>
+          {/if}
+        </button>
+        <button
+          class="btn-icon close"
+          onclick={close}
+          aria-label="Close"
+        >
           <svg width="12" height="12" viewBox="0 0 12 12">
-            <rect
-              x="3"
-              y="1"
-              width="8"
-              height="8"
-              rx="1"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            />
-            <path
-              d="M1 4 L1 11 L8 11"
-              fill="none"
+            <line
+              x1="1"
+              y1="1"
+              x2="11"
+              y2="11"
               stroke="currentColor"
               stroke-width="1.5"
               stroke-linecap="round"
-              stroke-linejoin="round"
             />
-          </svg>
-        {:else}
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <rect
-              x="1"
-              y="1"
-              width="10"
-              height="10"
-              rx="1"
-              fill="none"
+            <line
+              x1="11"
+              y1="1"
+              x2="1"
+              y2="11"
               stroke="currentColor"
               stroke-width="1.5"
+              stroke-linecap="round"
             />
           </svg>
-        {/if}
-      </button>
-      <button
-        class="btn-icon close"
-        onclick={close}
-        aria-label="Close"
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <line
-            x1="1"
-            y1="1"
-            x2="11"
-            y2="11"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-          <line
-            x1="11"
-            y1="1"
-            x2="1"
-            y2="11"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-        </svg>
-      </button>
+        </button>
+      {/if}
     {/if}
   </div>
 </nav>
@@ -286,6 +314,11 @@
     padding: 0 8px;
     position: relative;
     flex-shrink: 0;
+  }
+
+  .titlebar.overlay {
+    height: 30px;
+    padding: 0 6px;
   }
 
   .controls {
