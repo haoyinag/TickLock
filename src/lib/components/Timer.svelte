@@ -33,6 +33,9 @@
   let { isCompact = false, uiScale = 1 }: Props = $props();
 
   let state = $derived($timerState);
+  const showMiniControls = $derived(
+    isCompact && !$settings.overlay_locked_clickthrough && uiScale >= 0.62
+  );
 
   function roundColor(rt: string): string {
     if (rt === 'work') return 'var(--color-focus-round)';
@@ -181,7 +184,7 @@
     {/if}
   </div>
 
-  {#if isCompact && !$settings.overlay_locked_clickthrough}
+  {#if showMiniControls}
     <MiniControls />
   {/if}
 </div>

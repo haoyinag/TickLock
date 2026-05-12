@@ -9,7 +9,10 @@ pub mod timer;
 pub mod tray;
 pub mod websocket;
 
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use log::LevelFilter;
 use tauri::Manager;
@@ -298,6 +301,8 @@ pub fn run() {
             let app_for_close = app.handle().clone();
             let db_for_pos = db.clone();
             let win_for_pos = main_window.clone();
+            let square_resize_guard = Arc::new(AtomicBool::new(false));
+            let square_resize_guard_for_event = Arc::clone(&square_resize_guard);
             main_window.on_window_event(move |event| {
                 match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -326,17 +331,31 @@ pub fn run() {
                         }
                     }
                     tauri::WindowEvent::Resized(size) => {
+                        let mut width = size.width;
+                        let mut height = size.height;
+
                         if let Ok(conn) = db_for_pos.lock() {
-                            let _ = settings::save_setting(
-                                &conn,
-                                "window_width",
-                                &size.width.to_string(),
-                            );
-                            let _ = settings::save_setting(
-                                &conn,
-                                "window_height",
-                                &size.height.to_string(),
-                            );
+                            if let Ok(s) = settings::load(&conn) {
+                                let min = s.overlay_min_size;
+                                let max = s.overlay_max_size.max(min);
+                                let next = width.max(height).clamp(min, max);
+                                if width != height
+                                    && !s.overlay_locked_clickthrough
+                                    && !square_resize_guard_for_event.swap(true, Ordering::SeqCst)
+                                {
+                                    let _ =
+                                        win_for_pos.set_size(tauri::PhysicalSize::new(next, next));
+                                } else if width == height {
+                                    square_resize_guard_for_event.store(false, Ordering::SeqCst);
+                                }
+                                width = next;
+                                height = next;
+                            }
+
+                            let _ =
+                                settings::save_setting(&conn, "window_width", &width.to_string());
+                            let _ =
+                                settings::save_setting(&conn, "window_height", &height.to_string());
                             // Also capture position, since some window managers shift the
                             // window origin when resizing.
                             if let Ok(pos) = win_for_pos.outer_position() {

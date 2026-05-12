@@ -24,7 +24,7 @@ const DEFAULT_WINDOW_HEIGHT: u32 = 478;
 const OVERLAY_SIZE: u32 = 220;
 const OVERLAY_MIN_SIZE: u32 = 90;
 const OVERLAY_MAX_SIZE: u32 = 1000;
-const OVERLAY_MONITOR_INTERVAL: Duration = Duration::from_millis(150);
+const OVERLAY_MONITOR_INTERVAL: Duration = Duration::from_secs(1);
 
 fn normal_window_size(settings: &Settings) -> tauri::PhysicalSize<u32> {
     let width = settings
@@ -141,6 +141,7 @@ fn sync_tray_visibility(app: &AppHandle, tray_state: &Arc<TrayState>, settings: 
 
 pub(crate) fn spawn_overlay_monitor(app: AppHandle, db: DbState, tray_state: Arc<TrayState>) {
     tauri::async_runtime::spawn(async move {
+        let mut last_locked: Option<bool> = None;
         loop {
             tokio::time::sleep(OVERLAY_MONITOR_INTERVAL).await;
 
@@ -152,8 +153,11 @@ pub(crate) fn spawn_overlay_monitor(app: AppHandle, db: DbState, tray_state: Arc
                 continue;
             };
 
-            let _ = apply_clickthrough(&window, settings.overlay_locked_clickthrough);
-            apply_overlay_lock_chrome(&window, settings.overlay_locked_clickthrough);
+            if last_locked != Some(settings.overlay_locked_clickthrough) {
+                let _ = apply_clickthrough(&window, settings.overlay_locked_clickthrough);
+                apply_overlay_lock_chrome(&window, settings.overlay_locked_clickthrough);
+                last_locked = Some(settings.overlay_locked_clickthrough);
+            }
             sync_tray_visibility(&app, &tray_state, &settings);
         }
     });
