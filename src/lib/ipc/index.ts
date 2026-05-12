@@ -44,11 +44,17 @@ export const notificationShow = (title: string, body: string) =>
 
 export const setWindowVisibility = (visible: boolean) =>
   invoke<void>('window_set_visibility', { visible });
-export const setWindowOpacity = (opacity: number) => invoke<void>('window_set_opacity', { opacity });
+export const setWindowOpacity = (opacity: number) =>
+  invoke<void>('window_set_opacity', { opacity });
 export const setWindowClickthrough = (enabled: boolean) =>
   invoke<void>('window_set_clickthrough', { enabled });
+export const adjustOverlaySize = (delta: number) =>
+  invoke<number>('window_adjust_overlay_size', { delta });
+export const resetOverlaySize = () => invoke<number>('window_reset_overlay_size');
+export const getWindowCursorPosition = () =>
+  invoke<{ x: number; y: number }>('window_get_cursor_position');
 export const setWindowMode = (mode: 'overlay' | 'window') =>
-  invoke<void>('window_set_mode', { mode });
+  invoke<Settings>('window_set_mode', { mode });
 export const toggleWindowLock = () => invoke<Settings>('window_toggle_lock');
 
 // --- Audio commands ---

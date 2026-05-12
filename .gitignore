@@ -10,3 +10,6 @@ thumbs.db
 *.cert
 .svelte-kit/
 build/
+
+
+.history

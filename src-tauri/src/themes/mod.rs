@@ -99,11 +99,17 @@ pub fn load_custom(themes_dir: &Path) -> Vec<Theme> {
         }
         let raw = match std::fs::read_to_string(&path) {
             Ok(r) => r,
-            Err(e) => { log::warn!("[themes] cannot read {path:?}: {e}"); continue; }
+            Err(e) => {
+                log::warn!("[themes] cannot read {path:?}: {e}");
+                continue;
+            }
         };
         let value = match serde_json::from_str::<serde_json::Value>(&raw) {
             Ok(v) => v,
-            Err(e) => { log::warn!("[themes] invalid JSON in {path:?}: {e}"); continue; }
+            Err(e) => {
+                log::warn!("[themes] invalid JSON in {path:?}: {e}");
+                continue;
+            }
         };
         match parse_theme_value(value, true) {
             Some(t) => {
@@ -132,7 +138,11 @@ pub fn list_all(app_data_dir: &Path) -> Vec<Theme> {
         }
     }
 
-    log::debug!("[themes] available: {} total ({} custom)", themes.len(), custom_count);
+    log::debug!(
+        "[themes] available: {} total ({} custom)",
+        themes.len(),
+        custom_count
+    );
     themes
 }
 
@@ -154,7 +164,11 @@ fn parse_theme_value(v: serde_json::Value, is_custom: bool) -> Option<Theme> {
         .iter()
         .filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string())))
         .collect();
-    Some(Theme { name, colors, is_custom })
+    Some(Theme {
+        name,
+        colors,
+        is_custom,
+    })
 }
 
 // ---------------------------------------------------------------------------

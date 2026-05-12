@@ -1,7 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { settings } from '$lib/stores/settings';
-  import { setSetting, resetSettings, clearSessionHistory, traySupported } from '$lib/ipc';
+  import {
+    setSetting,
+    setWindowOpacity,
+    resetSettings,
+    clearSessionHistory,
+    traySupported,
+  } from '$lib/ipc';
   import SettingsToggle from '$lib/components/settings/SettingsToggle.svelte';
   import * as m from '$paraglide/messages.js';
   import { setLocale } from '$lib/locale.svelte.js';
@@ -30,9 +36,13 @@
 
   let localPort = $state(String($settings.websocket_port));
   let localOpacity = $state(Math.round($settings.window_opacity * 100));
+  let localMinSize = $state(String($settings.overlay_min_size));
+  let localMaxSize = $state(String($settings.overlay_max_size));
   $effect(() => {
     localPort = String($settings.websocket_port);
     localOpacity = Math.round($settings.window_opacity * 100);
+    localMinSize = String($settings.overlay_min_size);
+    localMaxSize = String($settings.overlay_max_size);
   });
 
   let langOpen = $state(false);
@@ -77,11 +87,6 @@
     settings.set(updated);
   }
 
-  async function setOverlayMode(enabled: boolean) {
-    const updated = await setSetting('overlay_mode_enabled', enabled ? 'true' : 'false');
-    settings.set(updated);
-  }
-
   async function setOverlayLock(enabled: boolean) {
     const updated = await setSetting('overlay_locked_clickthrough', enabled ? 'true' : 'false');
     settings.set(updated);
@@ -90,7 +95,41 @@
   async function setOpacity(value: number) {
     const clamped = Math.max(20, Math.min(100, value));
     localOpacity = clamped;
-    const updated = await setSetting('window_opacity', String(clamped / 100));
+    const opacityValue = clamped / 100;
+    const updated = await setSetting('window_opacity', String(opacityValue));
+    settings.set(updated);
+    await setWindowOpacity(opacityValue).catch(() => undefined);
+  }
+
+  async function setNumberSetting(key: string, value: number) {
+    const updated = await setSetting(key, String(value));
+    settings.set(updated);
+  }
+
+  async function handleMinSizeBlur() {
+    const raw = parseInt(localMinSize, 10);
+    if (Number.isNaN(raw)) {
+      localMinSize = String($settings.overlay_min_size);
+      return;
+    }
+    const value = Math.max(90, Math.min(raw, $settings.overlay_max_size));
+    localMinSize = String(value);
+    await setNumberSetting('overlay_min_size', value);
+  }
+
+  async function handleMaxSizeBlur() {
+    const raw = parseInt(localMaxSize, 10);
+    if (Number.isNaN(raw)) {
+      localMaxSize = String($settings.overlay_max_size);
+      return;
+    }
+    const value = Math.max($settings.overlay_min_size, Math.min(raw, 1000));
+    localMaxSize = String(value);
+    await setNumberSetting('overlay_max_size', value);
+  }
+
+  async function setColorSetting(key: string, value: string) {
+    const updated = await setSetting(key, value);
     settings.set(updated);
   }
 
@@ -239,40 +278,29 @@
     {/if}
   {/if}
 
-  <div class="group-heading">{m.system_group_window()}</div>
+  <div class="group-heading">Floating Ball / &#24748;&#28014;&#29699;</div>
 
   <SettingsToggle
-    label={m.system_toggle_aot()}
-    description={m.system_toggle_aot_desc()}
+    label="Always on top / &#21560;&#39030;"
+    description="Keep the floating timer above other windows."
     checked={$settings.always_on_top}
     onclick={() => toggle('always_on_top', $settings.always_on_top)}
   />
-  {#if $settings.always_on_top}
-    <SettingsToggle
-      label={m.system_toggle_break_aot()}
-      description={m.system_toggle_break_aot_desc()}
-      checked={$settings.break_always_on_top}
-      onclick={() => toggle('break_always_on_top', $settings.break_always_on_top)}
-    />
-  {/if}
 
   <SettingsToggle
-    label="Floating ball mode"
-    description="Switch between normal window and floating overlay mode."
-    checked={$settings.overlay_mode_enabled}
-    onclick={() => setOverlayMode(!$settings.overlay_mode_enabled)}
+    label="Click-through lock / &#40736;&#26631;&#31359;&#36879;&#38145;&#23450;"
+    description="When enabled, clicks pass through the floating ball to apps underneath."
+    checked={$settings.overlay_locked_clickthrough}
+    onclick={() => setOverlayLock(!$settings.overlay_locked_clickthrough)}
   />
-  {#if $settings.overlay_mode_enabled}
-    <SettingsToggle
-      label="Lock click-through"
-      description="When enabled, clicks pass through to underlying apps."
-      checked={$settings.overlay_locked_clickthrough}
-      onclick={() => setOverlayLock(!$settings.overlay_locked_clickthrough)}
-    />
-  {/if}
 
-  <div class="row">
-    <span class="label">Window Opacity</span>
+  <div class="row opacity-row">
+    <span class="label-block">
+      <span class="label">Shell opacity / &#22771;&#23618;&#36879;&#26126;&#24230;</span>
+      <span class="description"
+        >Only the floating shell fades; timer digits, ring, and controls stay clear.</span
+      >
+    </span>
     <div class="opacity-editor">
       <input
         type="range"
@@ -285,6 +313,66 @@
         }}
       />
       <span class="opacity-value">{localOpacity}%</span>
+    </div>
+  </div>
+
+  <div class="row size-row">
+    <span class="label-block">
+      <span class="label">Size limits / &#23610;&#23544;&#33539;&#22260;</span>
+      <span class="description">Unlocked resize is constrained between these square sizes.</span>
+    </span>
+    <div class="size-editor">
+      <label>
+        <span>Min</span>
+        <input
+          class="size-input"
+          type="number"
+          min="90"
+          max={$settings.overlay_max_size}
+          bind:value={localMinSize}
+          onblur={handleMinSizeBlur}
+        />
+      </label>
+      <label>
+        <span>Max</span>
+        <input
+          class="size-input"
+          type="number"
+          min={$settings.overlay_min_size}
+          max="1000"
+          bind:value={localMaxSize}
+          onblur={handleMaxSizeBlur}
+        />
+      </label>
+    </div>
+  </div>
+
+  <div class="row color-row">
+    <span class="label-block">
+      <span class="label">Progress gradient / &#36827;&#24230;&#28176;&#21464;</span>
+      <span class="description">Customize the floating ball progress ring colors.</span>
+    </span>
+    <div class="color-editor">
+      <input
+        type="color"
+        value={$settings.overlay_progress_color_start}
+        aria-label="Progress gradient start color"
+        oninput={(e) =>
+          setColorSetting(
+            'overlay_progress_color_start',
+            (e.currentTarget as HTMLInputElement).value
+          )}
+      />
+      <input
+        type="color"
+        value={$settings.overlay_progress_color_end}
+        aria-label="Progress gradient end color"
+        oninput={(e) =>
+          setColorSetting(
+            'overlay_progress_color_end',
+            (e.currentTarget as HTMLInputElement).value
+          )}
+      />
     </div>
   </div>
 
@@ -344,14 +432,38 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
     padding: 10px 20px;
     border-bottom: 1px solid var(--color-separator);
+  }
+
+  .opacity-row {
+    align-items: flex-start;
+  }
+
+  .size-row,
+  .color-row {
+    align-items: flex-start;
   }
 
   .label {
     font-size: 0.85rem;
     color: var(--color-foreground);
     letter-spacing: 0.02em;
+  }
+
+  .label-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .description {
+    font-size: 0.74rem;
+    line-height: 1.35;
+    color: var(--color-foreground-darker, var(--color-foreground));
+    opacity: 0.72;
   }
 
   .port-input {
@@ -384,6 +496,49 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .size-editor,
+  .color-editor {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .size-editor label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--color-foreground-darker, var(--color-foreground));
+    font-size: 0.72rem;
+  }
+
+  .size-input {
+    width: 64px;
+    background: var(--color-hover);
+    border: 1px solid color-mix(in oklch, var(--color-foreground) 18%, transparent);
+    border-radius: 4px;
+    color: var(--color-foreground);
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    text-align: right;
+    outline: none;
+  }
+
+  .size-input:focus {
+    border-color: var(--color-accent);
+  }
+
+  .color-editor input[type='color'] {
+    width: 34px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid color-mix(in oklch, var(--color-foreground) 22%, transparent);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
   }
 
   .opacity-editor input[type='range'] {

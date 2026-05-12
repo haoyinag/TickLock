@@ -32,9 +32,12 @@
   .time {
     font-family: 'Mona Sans Mono', monospace;
     font-size: 2.8rem;
-    font-weight: 300;
+    font-weight: 520;
     font-stretch: 85%;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     color: var(--color-foreground);
+    text-shadow:
+      0 0 10px color-mix(in oklch, var(--color-foreground) 45%, transparent),
+      0 1px 8px color-mix(in oklch, black 55%, transparent);
   }
 </style>

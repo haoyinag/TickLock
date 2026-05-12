@@ -1,7 +1,6 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import Titlebar from '$lib/components/Titlebar.svelte';
   import Timer from '$lib/components/Timer.svelte';
   import { getSettings, getThemes, onSettingsChanged, onThemesChanged } from '$lib/ipc';
   import { settings } from '$lib/stores/settings';
@@ -9,104 +8,30 @@
   import { resolveThemeName } from '$lib/utils/theme';
   import { isMac } from '$lib/utils/platform';
   import { setLocale } from '$lib/locale.svelte.js';
-  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-  import type { UnlistenFn } from '@tauri-apps/api/event';
+  import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { info, error as logError } from '@tauri-apps/plugin-log';
   import { createLocalShortcutHandler } from '$lib/utils/localShortcuts';
 
-  // Local shortcut state — volume and fullscreen tracked separately so the
-  // handler can read current values without waiting for settings:changed round-trip.
   let localVolume = $state(1.0);
   let preMuteVolume = $state(0.5);
   let isFullscreen = $state(false);
-
-  // Base window dimensions (natural/default size).
-  const BASE_W = 360;
-  const BASE_H = 478;
-  const TITLEBAR_H = 40;
-
-  // Compact mode: when either dimension drops below this threshold,
-  // hide non-essential elements (footer, label, play/pause) to show
-  // only the timer dial — like an Apple Watch face.
-  const COMPACT_THRESHOLD = 300;
-
-  let uiScale = $state(1.0);
-  let isCompact = $state(false);
-  let hoverReadyForUnlock = $state(false);
-  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // Extra bottom padding added to <main> in compact mode.  Shifts the
-  // dial upward so the whitespace sits at the bottom rather than being
-  // split equally — compensates for the visual weight of the titlebar.
-  const COMPACT_BOTTOM_PAD = 48;
+  let uiScale = $state(0.78);
+  const unlocked = $derived(!$settings.overlay_locked_clickthrough);
 
   $effect(() => {
     function update() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      isCompact = w < COMPACT_THRESHOLD || h < COMPACT_THRESHOLD;
-      if (isCompact) {
-        // Scale so the dial fills the available space, reserving
-        // COMPACT_BOTTOM_PAD px for the intentional bottom whitespace.
-        const available = Math.min(w - 16, h - TITLEBAR_H - 16 - COMPACT_BOTTOM_PAD);
-        uiScale = Math.max(0.4, Math.min(available / 220, 4));
-      } else {
-        // Scale proportionally to the base window dimensions.
-        uiScale = Math.max(0.5, Math.min(w / BASE_W, (h - TITLEBAR_H) / (BASE_H - TITLEBAR_H), 4));
-      }
+      const available = Math.max(72, Math.min(window.innerWidth, window.innerHeight) - 14);
+      uiScale = Math.max(0.28, Math.min(available / 252, 1.25));
     }
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   });
 
-  const overlayCompact = $derived(isCompact || $settings.overlay_mode_enabled);
-
-  function emitOverlayHoverReady(ready: boolean) {
-    window.dispatchEvent(new CustomEvent<boolean>('overlay:hover-ready', { detail: ready }));
-  }
-
-  function clearHoverUnlockTimer() {
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      hoverTimer = null;
-    }
-  }
-
-  function onOverlayPointerEnter() {
-    if (!$settings.overlay_mode_enabled) return;
-    clearHoverUnlockTimer();
-    hoverReadyForUnlock = false;
-    emitOverlayHoverReady(false);
-    hoverTimer = setTimeout(() => {
-      hoverReadyForUnlock = true;
-      emitOverlayHoverReady(true);
-    }, 3000);
-  }
-
-  function onOverlayPointerLeave() {
-    clearHoverUnlockTimer();
-    hoverReadyForUnlock = false;
-    emitOverlayHoverReady(false);
-  }
-
-  $effect(() => {
-    if (!$settings.overlay_mode_enabled) {
-      clearHoverUnlockTimer();
-      hoverReadyForUnlock = false;
-      emitOverlayHoverReady(false);
-    }
-  });
-
-  async function startResize(direction: string) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await getCurrentWebviewWindow().startResizeDragging(direction as any);
-  }
-
   onMount(() => {
     const cleanups: UnlistenFn[] = [];
 
-    // Mount local keyboard shortcut handler.
     const shortcutHandler = createLocalShortcutHandler({
       getSettings: () => $settings,
       getVolume: () => localVolume,
@@ -127,28 +52,24 @@
 
     (async () => {
       try {
-        // Load settings from backend.
         const s = await getSettings();
         settings.set(s);
         localVolume = s.volume;
 
-        // Apply the stored locale on mount.
         setLocale(s.language);
         await info(`[main] settings loaded, locale=${s.language}`);
 
-        // Load and apply the active theme using OS color scheme.
         const themes = await getThemes();
         const osDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const active = themes.find((t) => t.name === resolveThemeName(s, osDark)) ?? themes[0];
         if (active) applyTheme(active);
         await getCurrentWebviewWindow().show();
-        await info(`[main] initialized, theme=${active?.name ?? 'none'}`);
+        await info(`[main] initialized floating ball, theme=${active?.name ?? 'none'}`);
       } catch (e) {
         await logError(`[main] initialization failed: ${e}`);
         throw e;
       }
 
-      // Live OS color scheme changes — re-resolve only in auto mode.
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
       const mqListener = async (e: MediaQueryListEvent) => {
         if ($settings.theme_mode !== 'auto') return;
@@ -159,7 +80,6 @@
       mq.addEventListener('change', mqListener);
       cleanups.push(() => mq.removeEventListener('change', mqListener));
 
-      // Keep settings store in sync with backend changes.
       cleanups.push(
         await onSettingsChanged(async (updated) => {
           const prevMode = $settings.theme_mode;
@@ -182,7 +102,6 @@
             if (t) applyTheme(t);
           }
         }),
-        // Re-apply theme when custom themes are hot-reloaded.
         await onThemesChanged((updated) => {
           const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           const current =
@@ -190,165 +109,281 @@
           if (current) applyTheme(current);
         })
       );
+
+      const trayListener = await listen('tray:open-settings', async () => {
+        try {
+          const existing = await WebviewWindow.getByLabel('settings');
+          if (existing) {
+            await existing.show();
+            await existing.setFocus();
+            return;
+          }
+          const win = new WebviewWindow('settings', {
+            url: '/settings',
+            title: 'Pomotroid - Settings',
+            width: 720,
+            height: 520,
+            decorations: isMac,
+            titleBarStyle: isMac ? ('Overlay' as any) : undefined,
+            hiddenTitle: isMac ? true : undefined,
+            resizable: false,
+            visible: false,
+          });
+          await win.show();
+          await win.setFocus();
+        } catch (err) {
+          await logError(`[main] failed to open settings from tray: ${err}`);
+        }
+      });
+      cleanups.push(trayListener);
     })();
 
     return () => {
-      clearHoverUnlockTimer();
-      emitOverlayHoverReady(false);
       for (const fn of cleanups) fn();
     };
   });
+
+  async function startDrag() {
+    if (!unlocked) return;
+    await getCurrentWebviewWindow().startDragging();
+  }
+
+  async function startResize(direction: string) {
+    if (!unlocked || isMac) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await getCurrentWebviewWindow().startResizeDragging(direction as any);
+  }
 </script>
 
-<!-- Resize handles — invisible edge/corner strips for decorations-free windows.
-     Not needed on macOS where native resizing is provided by decorations:true. -->
-{#if !isMac && !$settings.overlay_mode_enabled}
-  <!-- N -->
-  <div class="rh rh-n" onmousedown={() => startResize('North')} role="none"></div>
-  <!-- S -->
-  <div class="rh rh-s" onmousedown={() => startResize('South')} role="none"></div>
-  <!-- E -->
-  <div class="rh rh-e" onmousedown={() => startResize('East')} role="none"></div>
-  <!-- W -->
-  <div class="rh rh-w" onmousedown={() => startResize('West')} role="none"></div>
-  <!-- NE -->
-  <div class="rh rh-ne" onmousedown={() => startResize('NorthEast')} role="none"></div>
-  <!-- NW -->
-  <div class="rh rh-nw" onmousedown={() => startResize('NorthWest')} role="none"></div>
-  <!-- SE -->
-  <div class="rh rh-se" onmousedown={() => startResize('SouthEast')} role="none"></div>
-  <!-- SW -->
-  <div class="rh rh-sw" onmousedown={() => startResize('SouthWest')} role="none"></div>
-{/if}
-
 <div
-  class="app"
-  class:overlay={$settings.overlay_mode_enabled}
-  style="opacity: {$settings.window_opacity};"
-  role="presentation"
-  onpointerenter={onOverlayPointerEnter}
-  onpointerleave={onOverlayPointerLeave}
+  class="floating-ball"
+  class:locked={$settings.overlay_locked_clickthrough}
+  class:unlocked
+  style:--shell-opacity={$settings.window_opacity}
+  role="application"
+  aria-label="Pomodoro floating timer"
 >
-  <Titlebar overlayMode={$settings.overlay_mode_enabled} />
-  <main class:compact={overlayCompact}>
-    <Timer isCompact={overlayCompact} {uiScale} />
-    {#if $settings.overlay_mode_enabled && hoverReadyForUnlock}
-      <div class="unlock-tip">Right click to {$settings.overlay_locked_clickthrough ? 'unlock' : 'lock'}</div>
+  <div class="shell-layer" data-tauri-drag-region></div>
+  {#if unlocked}
+    <button class="drag-zone" aria-label="Drag floating timer" onmousedown={startDrag}></button>
+    {#if !isMac}
+      <button
+        class="resize-handle resize-n"
+        aria-label="Resize floating timer north"
+        onmousedown={() => startResize('North')}
+      ></button>
+      <button
+        class="resize-handle resize-e"
+        aria-label="Resize floating timer east"
+        onmousedown={() => startResize('East')}
+      ></button>
+      <button
+        class="resize-handle resize-s"
+        aria-label="Resize floating timer south"
+        onmousedown={() => startResize('South')}
+      ></button>
+      <button
+        class="resize-handle resize-w"
+        aria-label="Resize floating timer west"
+        onmousedown={() => startResize('West')}
+      ></button>
+      <button
+        class="resize-handle resize-ne"
+        aria-label="Resize floating timer north east"
+        onmousedown={() => startResize('NorthEast')}
+      ></button>
+      <button
+        class="resize-handle resize-nw"
+        aria-label="Resize floating timer north west"
+        onmousedown={() => startResize('NorthWest')}
+      ></button>
+      <button
+        class="resize-handle resize-se"
+        aria-label="Resize floating timer south east"
+        onmousedown={() => startResize('SouthEast')}
+      ></button>
+      <button
+        class="resize-handle resize-sw"
+        aria-label="Resize floating timer south west"
+        onmousedown={() => startResize('SouthWest')}
+      ></button>
     {/if}
+  {/if}
+  <main>
+    <Timer isCompact={true} {uiScale} />
   </main>
 </div>
 
 <style>
-  .app {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: app-fade-in 0.4s var(--transition-slow) both;
+  :global(html),
+  :global(body) {
+    background: transparent;
   }
 
-  .app.overlay {
-    border-radius: 50%;
+  .floating-ball {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
     overflow: hidden;
+    border-radius: 50%;
+    animation: ball-scale-in 0.28s var(--transition-slow) both;
+  }
+
+  .shell-layer {
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background:
+      radial-gradient(
+        circle at 38% 28%,
+        color-mix(in oklch, white 22%, transparent),
+        transparent 36%
+      ),
+      color-mix(in oklch, var(--color-background) calc(var(--shell-opacity) * 100%), transparent);
+    border: 1px solid
+      color-mix(
+        in oklch,
+        var(--color-foreground) calc((0.18 + var(--shell-opacity) * 0.32) * 100%),
+        transparent
+      );
+    box-shadow:
+      inset 0 0 18px color-mix(in oklch, white 10%, transparent),
+      0 10px 30px color-mix(in oklch, black calc(var(--shell-opacity) * 28%), transparent);
+    opacity: 1;
+    transition:
+      opacity var(--transition-default),
+      border-color var(--transition-default),
+      box-shadow var(--transition-default);
+    pointer-events: none;
+  }
+
+  .floating-ball.locked .shell-layer {
+    opacity: 0;
+    border-color: transparent;
+    box-shadow: none;
   }
 
   main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
     position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
   }
 
-  main.compact {
-    /* Bottom padding provides breathing room below the mini controls. */
-    padding-bottom: 8px;
-  }
-
-  .unlock-tip {
+  .drag-zone,
+  .resize-handle {
     position: absolute;
-    bottom: 8px;
+    z-index: 3;
+    appearance: none;
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .drag-zone {
+    top: 10px;
     left: 50%;
+    width: 54%;
+    height: 28px;
     transform: translateX(-50%);
-    font-size: 11px;
-    color: var(--color-foreground);
-    background: color-mix(in oklch, var(--color-background) 76%, black 24%);
-    border: 1px solid color-mix(in oklch, var(--color-foreground) 22%, transparent);
     border-radius: 999px;
-    padding: 3px 8px;
-    pointer-events: none;
-    white-space: nowrap;
+    cursor: move;
   }
 
-  /* ---------------------------------------------------------------------------
-     Resize handles — positioned outside/over the window edges so the user can
-     grab them to resize a decoration-free window (needed on Linux/Wayland and
-     GNOME with undecorated windows).
-     --------------------------------------------------------------------------- */
-  :global(.rh) {
-    position: fixed;
-    z-index: 9999;
+  .drag-zone::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    width: 30px;
+    height: 3px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--color-foreground) 32%, transparent);
+    box-shadow: 0 0 8px color-mix(in oklch, var(--color-foreground) 22%, transparent);
   }
 
-  /* Edge handles */
-  :global(.rh-n) {
+  .resize-handle {
+    opacity: 0;
+  }
+
+  .resize-n,
+  .resize-s {
+    left: 24%;
+    width: 52%;
+    height: 10px;
+  }
+
+  .resize-e,
+  .resize-w {
+    top: 24%;
+    width: 10px;
+    height: 52%;
+  }
+
+  .resize-n {
     top: 0;
-    left: 6px;
-    right: 6px;
-    height: 5px;
     cursor: n-resize;
   }
-  :global(.rh-s) {
-    bottom: 0;
-    left: 6px;
-    right: 6px;
-    height: 5px;
-    cursor: s-resize;
-  }
-  :global(.rh-e) {
+
+  .resize-e {
     right: 0;
-    top: 6px;
-    bottom: 6px;
-    width: 5px;
     cursor: e-resize;
   }
-  :global(.rh-w) {
+
+  .resize-s {
+    bottom: 0;
+    cursor: s-resize;
+  }
+
+  .resize-w {
     left: 0;
-    top: 6px;
-    bottom: 6px;
-    width: 5px;
     cursor: w-resize;
   }
 
-  /* Corner handles (larger for easier grabbing) */
-  :global(.rh-ne) {
-    top: 0;
-    right: 0;
-    width: 10px;
-    height: 10px;
+  .resize-ne,
+  .resize-nw,
+  .resize-se,
+  .resize-sw {
+    width: 34px;
+    height: 34px;
+  }
+
+  .resize-ne {
+    top: 2px;
+    right: 2px;
     cursor: ne-resize;
   }
-  :global(.rh-nw) {
-    top: 0;
-    left: 0;
-    width: 10px;
-    height: 10px;
+
+  .resize-nw {
+    top: 2px;
+    left: 2px;
     cursor: nw-resize;
   }
-  :global(.rh-se) {
-    bottom: 0;
-    right: 0;
-    width: 10px;
-    height: 10px;
+
+  .resize-se {
+    right: 2px;
+    bottom: 2px;
     cursor: se-resize;
   }
-  :global(.rh-sw) {
-    bottom: 0;
-    left: 0;
-    width: 10px;
-    height: 10px;
+
+  .resize-sw {
+    left: 2px;
+    bottom: 2px;
     cursor: sw-resize;
+  }
+
+  @keyframes ball-scale-in {
+    from {
+      transform: scale(0.94);
+    }
+    to {
+      transform: scale(1);
+    }
   }
 </style>

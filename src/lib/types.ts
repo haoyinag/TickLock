@@ -59,6 +59,10 @@ export interface Settings {
   window_opacity: number;
   overlay_mode_enabled: boolean;
   overlay_locked_clickthrough: boolean;
+  overlay_min_size: number;
+  overlay_max_size: number;
+  overlay_progress_color_start: string;
+  overlay_progress_color_end: string;
 }
 
 /** Returned by `check_update` — describes an available update. */

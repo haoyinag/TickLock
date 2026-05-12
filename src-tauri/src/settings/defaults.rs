@@ -5,7 +5,7 @@
 /// Time values are stored in **seconds** (since MIGRATION_2).
 /// Volume is stored on a **0–100** integer scale; converted to 0.0–1.0 on load.
 pub const DEFAULTS: &[(&str, &str)] = &[
-    ("always_on_top", "false"),
+    ("always_on_top", "true"),
     ("break_always_on_top", "false"),
     ("auto_start_work", "true"),
     ("auto_start_break", "true"),
@@ -39,7 +39,11 @@ pub const DEFAULTS: &[(&str, &str)] = &[
     ("local_shortcut_volume_up", "ArrowUp"),
     ("local_shortcut_mute", "m"),
     ("local_shortcut_fullscreen", "F11"),
-    ("window_opacity", "1.0"),
-    ("overlay_mode_enabled", "false"),
+    ("window_opacity", "0.85"),
+    ("overlay_mode_enabled", "true"),
     ("overlay_locked_clickthrough", "true"),
+    ("overlay_min_size", "90"),
+    ("overlay_max_size", "420"),
+    ("overlay_progress_color_start", "#ff7a45"),
+    ("overlay_progress_color_end", "#ff2d75"),
 ];

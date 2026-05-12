@@ -22,10 +22,14 @@ pub enum TimerCommand {
     /// Immediately fires a `Complete` event (user-initiated skip).
     Skip,
     /// Change the total duration; moves engine to Idle so caller must Start.
-    Reconfigure { duration_secs: u32 },
+    Reconfigure {
+        duration_secs: u32,
+    },
     /// Update the stored duration without altering phase or elapsed time.
     /// Used to arm the next round/reset path without clobbering a fresh Start.
-    Prime { duration_secs: u32 },
+    Prime {
+        duration_secs: u32,
+    },
     /// OS sleep detected: freeze elapsed position, block until WakeResume.
     Suspend,
     /// OS wake detected: resume from the saved elapsed position.
@@ -195,7 +199,10 @@ fn run_loop(
                     Err(RecvTimeoutError::Timeout) => {
                         seg.ticks += 1;
                         elapsed_secs = seg.elapsed_at_start + seg.ticks;
-                        let _ = event_tx.send(TimerEvent::Tick { elapsed_secs, total_secs });
+                        let _ = event_tx.send(TimerEvent::Tick {
+                            elapsed_secs,
+                            total_secs,
+                        });
 
                         if elapsed_secs >= total_secs {
                             let _ = event_tx.send(TimerEvent::Complete { skipped: false });
@@ -349,7 +356,10 @@ mod tests {
             .filter(|e| matches!(e, TimerEvent::Tick { .. }))
             .count();
         assert_eq!(paused, 1, "expected 1 Paused event");
-        assert!(ticks_before_pause >= 2, "should have at least 2 ticks before pause");
+        assert!(
+            ticks_before_pause >= 2,
+            "should have at least 2 ticks before pause"
+        );
 
         // Resume and let the rest complete.
         handle.send(TimerCommand::Resume);
@@ -383,7 +393,9 @@ mod tests {
         );
         // No Complete should have fired.
         assert!(
-            !events.iter().any(|e| matches!(e, TimerEvent::Complete { .. })),
+            !events
+                .iter()
+                .any(|e| matches!(e, TimerEvent::Complete { .. })),
             "Complete must not fire on Reset"
         );
     }
@@ -397,7 +409,9 @@ mod tests {
 
         let events = collect_until_complete(&rx, Duration::from_millis(500));
         assert!(
-            events.iter().any(|e| matches!(e, TimerEvent::Complete { .. })),
+            events
+                .iter()
+                .any(|e| matches!(e, TimerEvent::Complete { .. })),
             "Skip must trigger Complete"
         );
         // Should have completed well before 30 ticks elapsed.
@@ -430,13 +444,18 @@ mod tests {
             "expected Suspended event with elapsed_secs"
         );
         let saved = suspended_elapsed.unwrap();
-        assert!(saved >= 3, "elapsed at suspend should be >= 3 s, got {saved}");
+        assert!(
+            saved >= 3,
+            "elapsed at suspend should be >= 3 s, got {saved}"
+        );
 
         // Gap: simulate OS sleep (no ticks must fire).
         std::thread::sleep(TICK * 5);
         let during_suspend = drain(&rx);
         assert!(
-            !during_suspend.iter().any(|e| matches!(e, TimerEvent::Tick { .. })),
+            !during_suspend
+                .iter()
+                .any(|e| matches!(e, TimerEvent::Tick { .. })),
             "no ticks must fire while suspended"
         );
 
@@ -457,7 +476,9 @@ mod tests {
             "Resumed event must carry the same elapsed_secs as Suspended"
         );
         assert!(
-            after.iter().any(|e| matches!(e, TimerEvent::Complete { .. })),
+            after
+                .iter()
+                .any(|e| matches!(e, TimerEvent::Complete { .. })),
             "timer must complete after WakeResume"
         );
     }
@@ -501,7 +522,10 @@ mod tests {
             .iter()
             .filter(|e| matches!(e, TimerEvent::Tick { .. }))
             .count();
-        assert_eq!(ticks, 3, "Reconfigure to 3s should yield 3 ticks, got {ticks}");
+        assert_eq!(
+            ticks, 3,
+            "Reconfigure to 3s should yield 3 ticks, got {ticks}"
+        );
         assert!(
             matches!(events.last(), Some(TimerEvent::Complete { .. })),
             "last event must be Complete after reconfigured timer"
@@ -522,7 +546,10 @@ mod tests {
             .iter()
             .filter(|e| matches!(e, TimerEvent::Tick { .. }))
             .count();
-        assert_eq!(ticks, 3, "Prime to 3s should keep the timer running and yield 3 ticks, got {ticks}");
+        assert_eq!(
+            ticks, 3,
+            "Prime to 3s should keep the timer running and yield 3 ticks, got {ticks}"
+        );
         assert!(
             matches!(events.last(), Some(TimerEvent::Complete { .. })),
             "last event must be Complete after priming a fresh start"

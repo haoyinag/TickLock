@@ -7,11 +7,7 @@ use serde::Serialize;
 
 /// Inserts a new session row when a round begins.
 /// Returns the row ID so it can be passed to `complete_session` later.
-pub fn insert_session(
-    conn: &Connection,
-    round_type: &str,
-    duration_secs: u32,
-) -> Result<i64> {
+pub fn insert_session(conn: &Connection, round_type: &str, duration_secs: u32) -> Result<i64> {
     let started_at = unix_now();
     conn.execute(
         "INSERT INTO sessions (started_at, round_type, duration_secs, completed)
@@ -24,11 +20,7 @@ pub fn insert_session(
 }
 
 /// Updates a session when the round ends (by completion or skip).
-pub fn complete_session(
-    conn: &Connection,
-    session_id: i64,
-    completed: bool,
-) -> Result<()> {
+pub fn complete_session(conn: &Connection, session_id: i64, completed: bool) -> Result<()> {
     conn.execute(
         "UPDATE sessions SET ended_at = ?1, completed = ?2 WHERE id = ?3",
         params![unix_now(), completed as i64, session_id],
@@ -112,11 +104,7 @@ pub struct StreakInfo {
 
 /// Completed work rounds and focus time for today (local calendar date).
 pub fn get_daily_stats(conn: &Connection) -> Result<DailyStats> {
-    let today: String = conn.query_row(
-        "SELECT date('now', 'localtime')",
-        [],
-        |r| r.get(0),
-    )?;
+    let today: String = conn.query_row("SELECT date('now', 'localtime')", [], |r| r.get(0))?;
 
     let total: i64 = conn.query_row(
         "SELECT COUNT(*) FROM sessions
@@ -162,7 +150,11 @@ pub fn get_daily_stats(conn: &Connection) -> Result<DailyStats> {
     Ok(DailyStats {
         rounds: completed as u32,
         focus_mins: ((focus_secs + 30) / 60) as u32,
-        completion_rate: if total > 0 { Some(completed as f32 / total as f32) } else { None },
+        completion_rate: if total > 0 {
+            Some(completed as f32 / total as f32)
+        } else {
+            None
+        },
         by_hour,
     })
 }
@@ -178,7 +170,13 @@ pub fn get_weekly_stats(conn: &Connection) -> Result<Vec<DayStat>> {
          GROUP BY day
          ORDER BY day",
     )?;
-    let rows = stmt.query_map([], |r| Ok(DayStat { date: r.get(0)?, rounds: r.get(1)? }))?
+    let rows = stmt
+        .query_map([], |r| {
+            Ok(DayStat {
+                date: r.get(0)?,
+                rounds: r.get(1)?,
+            })
+        })?
         .collect();
     rows
 }
@@ -194,7 +192,13 @@ pub fn get_heatmap_data(conn: &Connection) -> Result<Vec<HeatmapEntry>> {
          GROUP BY day
          ORDER BY day",
     )?;
-    let rows = stmt.query_map([], |r| Ok(HeatmapEntry { date: r.get(0)?, count: r.get(1)? }))?
+    let rows = stmt
+        .query_map([], |r| {
+            Ok(HeatmapEntry {
+                date: r.get(0)?,
+                count: r.get(1)?,
+            })
+        })?
         .collect();
     rows
 }
@@ -203,11 +207,7 @@ pub fn get_heatmap_data(conn: &Connection) -> Result<Vec<HeatmapEntry>> {
 /// A streak stays active until midnight: if yesterday had sessions but today does not,
 /// the streak is still counted as current.
 pub fn get_streak(conn: &Connection) -> Result<StreakInfo> {
-    let today: String = conn.query_row(
-        "SELECT date('now', 'localtime')",
-        [],
-        |r| r.get(0),
-    )?;
+    let today: String = conn.query_row("SELECT date('now', 'localtime')", [], |r| r.get(0))?;
 
     let mut stmt = conn.prepare(
         "SELECT date(started_at, 'unixepoch', 'localtime') as day
@@ -216,10 +216,7 @@ pub fn get_streak(conn: &Connection) -> Result<StreakInfo> {
          GROUP BY day
          ORDER BY day",
     )?;
-    let days: Vec<String> = stmt
-        .query_map([], |r| r.get(0))?
-        .flatten()
-        .collect();
+    let days: Vec<String> = stmt.query_map([], |r| r.get(0))?.flatten().collect();
 
     Ok(compute_streak(&days, &today))
 }
@@ -244,12 +241,20 @@ fn date_to_day_num(s: &str) -> Option<i32> {
 pub fn compute_streak(days: &[String], today: &str) -> StreakInfo {
     let nums: Vec<i32> = days.iter().filter_map(|s| date_to_day_num(s)).collect();
     if nums.is_empty() {
-        return StreakInfo { current: 0, longest: 0 };
+        return StreakInfo {
+            current: 0,
+            longest: 0,
+        };
     }
 
     let today_n = match date_to_day_num(today) {
         Some(n) => n,
-        None => return StreakInfo { current: 0, longest: 0 },
+        None => {
+            return StreakInfo {
+                current: 0,
+                longest: 0,
+            }
+        }
     };
 
     // Current streak — alive if most recent session day is today or yesterday.
@@ -276,7 +281,9 @@ pub fn compute_streak(days: &[String], today: &str) -> StreakInfo {
     for i in 1..nums.len() {
         if nums[i] == nums[i - 1] + 1 {
             run += 1;
-            if run > longest { longest = run; }
+            if run > longest {
+                longest = run;
+            }
         } else {
             run = 1;
         }
@@ -316,11 +323,9 @@ mod tests {
         complete_session(&conn, id, true).unwrap();
 
         let completed: i64 = conn
-            .query_row(
-                "SELECT completed FROM sessions WHERE id = ?1",
-                [id],
-                |r| r.get(0),
-            )
+            .query_row("SELECT completed FROM sessions WHERE id = ?1", [id], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(completed, 1);
     }
@@ -343,7 +348,11 @@ mod tests {
 
     #[test]
     fn compute_streak_active_today() {
-        let days = vec!["2024-03-13".to_string(), "2024-03-14".to_string(), "2024-03-15".to_string()];
+        let days = vec![
+            "2024-03-13".to_string(),
+            "2024-03-14".to_string(),
+            "2024-03-15".to_string(),
+        ];
         let info = compute_streak(&days, "2024-03-15");
         assert_eq!(info.current, 3);
         assert_eq!(info.longest, 3);
@@ -368,8 +377,11 @@ mod tests {
     #[test]
     fn compute_streak_longest_across_break() {
         let days = vec![
-            "2024-03-01".to_string(), "2024-03-02".to_string(), "2024-03-03".to_string(),
-            "2024-03-10".to_string(), "2024-03-11".to_string(),
+            "2024-03-01".to_string(),
+            "2024-03-02".to_string(),
+            "2024-03-03".to_string(),
+            "2024-03-10".to_string(),
+            "2024-03-11".to_string(),
         ];
         let info = compute_streak(&days, "2024-03-11");
         assert_eq!(info.current, 2);

@@ -71,12 +71,20 @@ pub struct Settings {
     pub overlay_mode_enabled: bool,
     /// When true, the overlay is locked and click-through is enabled.
     pub overlay_locked_clickthrough: bool,
+    /// Minimum floating ball size in physical pixels.
+    pub overlay_min_size: u32,
+    /// Maximum floating ball size in physical pixels.
+    pub overlay_max_size: u32,
+    /// Progress ring gradient start color.
+    pub overlay_progress_color_start: String,
+    /// Progress ring gradient end color.
+    pub overlay_progress_color_end: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            always_on_top: false,
+            always_on_top: true,
             break_always_on_top: false,
             auto_start_work: true,
             auto_start_break: true,
@@ -130,9 +138,13 @@ impl Default for Settings {
             window_y: None,
             window_width: None,
             window_height: None,
-            window_opacity: 1.0,
-            overlay_mode_enabled: false,
+            window_opacity: 0.85,
+            overlay_mode_enabled: true,
             overlay_locked_clickthrough: true,
+            overlay_min_size: 90,
+            overlay_max_size: 420,
+            overlay_progress_color_start: "#ff7a45".to_string(),
+            overlay_progress_color_end: "#ff2d75".to_string(),
         }
     }
 }
@@ -146,16 +158,16 @@ pub fn seed_defaults(conn: &Connection) -> Result<()> {
     // Platform-specific shortcut defaults (seeded first so they win).
     #[cfg(target_os = "macos")]
     let shortcut_defaults: &[(&str, &str)] = &[
-        ("shortcut_toggle",  "Super+Shift+1"),
-        ("shortcut_reset",   "Super+Shift+2"),
-        ("shortcut_skip",    "Super+Shift+3"),
+        ("shortcut_toggle", "Super+Shift+1"),
+        ("shortcut_reset", "Super+Shift+2"),
+        ("shortcut_skip", "Super+Shift+3"),
         ("shortcut_restart", "Super+Shift+4"),
     ];
     #[cfg(not(target_os = "macos"))]
     let shortcut_defaults: &[(&str, &str)] = &[
-        ("shortcut_toggle",  "Control+F1"),
-        ("shortcut_reset",   "Control+F2"),
-        ("shortcut_skip",    "Control+F3"),
+        ("shortcut_toggle", "Control+F1"),
+        ("shortcut_reset", "Control+F2"),
+        ("shortcut_skip", "Control+F3"),
         ("shortcut_restart", "Control+F4"),
     ];
 
@@ -181,12 +193,18 @@ pub fn seed_defaults(conn: &Connection) -> Result<()> {
 pub fn load(conn: &Connection) -> Result<Settings> {
     let mut stmt = conn.prepare("SELECT key, value FROM settings")?;
     let map: HashMap<String, String> = stmt
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
         .filter_map(|r| r.ok())
         .collect();
 
     log::debug!("[settings] loaded {} keys from db", map.len());
     let d = Settings::default();
+    let overlay_min_size = parse_u32(&map, "overlay_min_size", d.overlay_min_size).clamp(90, 800);
+    let overlay_max_size =
+        parse_u32(&map, "overlay_max_size", d.overlay_max_size).clamp(overlay_min_size, 1000);
+
     Ok(Settings {
         always_on_top: parse_bool(&map, "always_on_top", d.always_on_top),
         break_always_on_top: parse_bool(&map, "break_always_on_top", d.break_always_on_top),
@@ -200,24 +218,11 @@ pub fn load(conn: &Connection) -> Result<Settings> {
         short_breaks_enabled: parse_bool(&map, "short_breaks_enabled", d.short_breaks_enabled),
         long_breaks_enabled: parse_bool(&map, "long_breaks_enabled", d.long_breaks_enabled),
         dial_countdown: parse_bool(&map, "dial_countdown", d.dial_countdown),
-        theme_mode: map
-            .get("theme_mode")
-            .cloned()
-            .unwrap_or(d.theme_mode),
-        theme_light: map
-            .get("theme_light")
-            .cloned()
-            .unwrap_or(d.theme_light),
-        theme_dark: map
-            .get("theme_dark")
-            .cloned()
-            .unwrap_or(d.theme_dark),
+        theme_mode: map.get("theme_mode").cloned().unwrap_or(d.theme_mode),
+        theme_light: map.get("theme_light").cloned().unwrap_or(d.theme_light),
+        theme_dark: map.get("theme_dark").cloned().unwrap_or(d.theme_dark),
         tick_sounds_during_work: parse_bool(&map, "tick_sounds_work", d.tick_sounds_during_work),
-        tick_sounds_during_break: parse_bool(
-            &map,
-            "tick_sounds_break",
-            d.tick_sounds_during_break,
-        ),
+        tick_sounds_during_break: parse_bool(&map, "tick_sounds_break", d.tick_sounds_during_break),
         // DB stores seconds directly (since MIGRATION_2).
         time_work_secs: parse_u32(&map, "time_work_secs", d.time_work_secs),
         time_short_break_secs: parse_u32(&map, "time_short_break_secs", d.time_short_break_secs),
@@ -233,10 +238,7 @@ pub fn load(conn: &Connection) -> Result<Settings> {
             .get("shortcut_reset")
             .cloned()
             .unwrap_or(d.shortcut_reset),
-        shortcut_skip: map
-            .get("shortcut_skip")
-            .cloned()
-            .unwrap_or(d.shortcut_skip),
+        shortcut_skip: map.get("shortcut_skip").cloned().unwrap_or(d.shortcut_skip),
         shortcut_restart: map
             .get("shortcut_restart")
             .cloned()
@@ -246,14 +248,39 @@ pub fn load(conn: &Connection) -> Result<Settings> {
         language: map.get("language").cloned().unwrap_or(d.language),
         verbose_logging: parse_bool(&map, "verbose_logging", d.verbose_logging),
         check_for_updates: parse_bool(&map, "check_for_updates", d.check_for_updates),
-        global_shortcuts_enabled: parse_bool(&map, "global_shortcuts_enabled", d.global_shortcuts_enabled),
-        local_shortcut_toggle: map.get("local_shortcut_toggle").cloned().unwrap_or(d.local_shortcut_toggle),
-        local_shortcut_reset: map.get("local_shortcut_reset").cloned().unwrap_or(d.local_shortcut_reset),
-        local_shortcut_skip: map.get("local_shortcut_skip").cloned().unwrap_or(d.local_shortcut_skip),
-        local_shortcut_volume_down: map.get("local_shortcut_volume_down").cloned().unwrap_or(d.local_shortcut_volume_down),
-        local_shortcut_volume_up: map.get("local_shortcut_volume_up").cloned().unwrap_or(d.local_shortcut_volume_up),
-        local_shortcut_mute: map.get("local_shortcut_mute").cloned().unwrap_or(d.local_shortcut_mute),
-        local_shortcut_fullscreen: map.get("local_shortcut_fullscreen").cloned().unwrap_or(d.local_shortcut_fullscreen),
+        global_shortcuts_enabled: parse_bool(
+            &map,
+            "global_shortcuts_enabled",
+            d.global_shortcuts_enabled,
+        ),
+        local_shortcut_toggle: map
+            .get("local_shortcut_toggle")
+            .cloned()
+            .unwrap_or(d.local_shortcut_toggle),
+        local_shortcut_reset: map
+            .get("local_shortcut_reset")
+            .cloned()
+            .unwrap_or(d.local_shortcut_reset),
+        local_shortcut_skip: map
+            .get("local_shortcut_skip")
+            .cloned()
+            .unwrap_or(d.local_shortcut_skip),
+        local_shortcut_volume_down: map
+            .get("local_shortcut_volume_down")
+            .cloned()
+            .unwrap_or(d.local_shortcut_volume_down),
+        local_shortcut_volume_up: map
+            .get("local_shortcut_volume_up")
+            .cloned()
+            .unwrap_or(d.local_shortcut_volume_up),
+        local_shortcut_mute: map
+            .get("local_shortcut_mute")
+            .cloned()
+            .unwrap_or(d.local_shortcut_mute),
+        local_shortcut_fullscreen: map
+            .get("local_shortcut_fullscreen")
+            .cloned()
+            .unwrap_or(d.local_shortcut_fullscreen),
         window_x: parse_opt_i32(&map, "window_x"),
         window_y: parse_opt_i32(&map, "window_y"),
         window_width: parse_opt_u32(&map, "window_width"),
@@ -265,6 +292,16 @@ pub fn load(conn: &Connection) -> Result<Settings> {
             "overlay_locked_clickthrough",
             d.overlay_locked_clickthrough,
         ),
+        overlay_min_size,
+        overlay_max_size,
+        overlay_progress_color_start: map
+            .get("overlay_progress_color_start")
+            .cloned()
+            .unwrap_or(d.overlay_progress_color_start),
+        overlay_progress_color_end: map
+            .get("overlay_progress_color_end")
+            .cloned()
+            .unwrap_or(d.overlay_progress_color_end),
     })
 }
 
@@ -297,9 +334,7 @@ fn parse_bool(map: &HashMap<String, String>, key: &str, default: bool) -> bool {
 }
 
 fn parse_u32(map: &HashMap<String, String>, key: &str, default: u32) -> u32 {
-    map.get(key)
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default)
+    map.get(key).and_then(|v| v.parse().ok()).unwrap_or(default)
 }
 
 fn parse_opt_i32(map: &HashMap<String, String>, key: &str) -> Option<i32> {
@@ -311,9 +346,7 @@ fn parse_opt_u32(map: &HashMap<String, String>, key: &str) -> Option<u32> {
 }
 
 fn parse_f32(map: &HashMap<String, String>, key: &str, default: f32) -> f32 {
-    map.get(key)
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default)
+    map.get(key).and_then(|v| v.parse().ok()).unwrap_or(default)
 }
 
 // ---------------------------------------------------------------------------
@@ -356,7 +389,7 @@ mod tests {
             assert_eq!(s.shortcut_skip, "Control+F3");
             assert_eq!(s.shortcut_restart, "Control+F4");
         }
-        assert!(!s.always_on_top);
+        assert!(s.always_on_top);
         assert!(!s.websocket_enabled);
         assert_eq!(s.websocket_port, 1314);
         assert_eq!(s.theme_mode, "auto");
@@ -374,7 +407,10 @@ mod tests {
         save_setting(&conn, "always_on_top", "true").unwrap();
         seed_defaults(&conn).unwrap();
         let s = load(&conn).unwrap();
-        assert!(s.always_on_top, "seed_defaults must not overwrite saved value");
+        assert!(
+            s.always_on_top,
+            "seed_defaults must not overwrite saved value"
+        );
     }
 
     #[test]
@@ -437,11 +473,19 @@ mod tests {
 
         let s = load(&conn).unwrap();
         // Timer settings must be restored to defaults.
-        assert_eq!(s.time_work_secs, 25 * 60, "work duration must reset to 25 min");
-        assert_eq!(s.time_short_break_secs, 5 * 60, "short break must reset to 5 min");
+        assert_eq!(
+            s.time_work_secs,
+            25 * 60,
+            "work duration must reset to 25 min"
+        );
+        assert_eq!(
+            s.time_short_break_secs,
+            5 * 60,
+            "short break must reset to 5 min"
+        );
         assert_eq!(s.long_break_interval, 4, "work rounds must reset to 4");
         // Non-timer settings are also wiped and reseeded to their defaults.
-        assert!(!s.always_on_top, "always_on_top must reset to default false");
+        assert!(s.always_on_top, "always_on_top must reset to default true");
     }
 
     #[test]
@@ -450,27 +494,63 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         // Run only migration 1 manually to get v1 state.
         conn.execute_batch("BEGIN; CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL); INSERT INTO schema_version VALUES (1); COMMIT;").unwrap();
-        conn.execute("INSERT INTO settings (key, value) VALUES ('time_work_mins', '30')", []).unwrap();
-        conn.execute("INSERT INTO settings (key, value) VALUES ('time_short_break_mins', '7')", []).unwrap();
-        conn.execute("INSERT INTO settings (key, value) VALUES ('time_long_break_mins', '20')", []).unwrap();
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('time_work_mins', '30')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('time_short_break_mins', '7')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('time_long_break_mins', '20')",
+            [],
+        )
+        .unwrap();
 
         // Now run the full migration suite — only MIGRATION_2 should fire.
         crate::db::migrations::run(&conn).unwrap();
 
         // New keys must exist with correct second values.
-        let work: String = conn.query_row("SELECT value FROM settings WHERE key = 'time_work_secs'", [], |r| r.get(0)).unwrap();
+        let work: String = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'time_work_secs'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(work, "1800");
-        let short: String = conn.query_row("SELECT value FROM settings WHERE key = 'time_short_break_secs'", [], |r| r.get(0)).unwrap();
+        let short: String = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'time_short_break_secs'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(short, "420");
-        let long: String = conn.query_row("SELECT value FROM settings WHERE key = 'time_long_break_secs'", [], |r| r.get(0)).unwrap();
+        let long: String = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'time_long_break_secs'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(long, "1200");
 
         // Old keys must be gone.
-        let old_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM settings WHERE key LIKE '%_mins'",
-            [], |r| r.get(0),
-        ).unwrap();
-        assert_eq!(old_count, 0, "old *_mins keys must be absent after MIGRATION_2");
+        let old_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM settings WHERE key LIKE '%_mins'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            old_count, 0,
+            "old *_mins keys must be absent after MIGRATION_2"
+        );
     }
 
     #[test]
@@ -483,12 +563,18 @@ mod tests {
             save_setting(&conn, "auto_start_work", "true").unwrap();
         }
         let s = load(&conn).unwrap();
-        assert!(s.auto_start_work, "auto_start_work must remain true after repeated writes");
+        assert!(
+            s.auto_start_work,
+            "auto_start_work must remain true after repeated writes"
+        );
 
         for _ in 0..5 {
             save_setting(&conn, "auto_start_work", "false").unwrap();
         }
         let s = load(&conn).unwrap();
-        assert!(!s.auto_start_work, "auto_start_work must be false after repeated false writes");
+        assert!(
+            !s.auto_start_work,
+            "auto_start_work must be false after repeated false writes"
+        );
     }
 }

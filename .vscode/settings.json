@@ -3,5 +3,15 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[svelte]": {
     "editor.defaultFormatter": "svelte.svelte-vscode"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "/^powershell -NoProfile -Command \"Get-ChildItem -Path \\$env:USERPROFILE\\\\\\.cargo\\\\registry\\\\src -Recurse -Filter '\\*\\.rs' \\| Select-String -Pattern 'set_ignore_cursor_events' \\| Select-Object -First 20 \\| Format-Table Path,LineNumber,Line -AutoSize\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^powershell -NoProfile -Command \"Get-ChildItem -Path \\$env:USERPROFILE\\\\\\.cargo\\\\registry\\\\src\\\\index\\.crates\\.io-\\*\\\\tao-0\\.\\* -Recurse -Filter '\\*\\.rs' \\| Select-String -Pattern 'fn set_ignore_cursor_events\\|set_ignore_cursor_events\\\\\\(\\|pub fn set_ignore_cursor_events' \\| Select-Object -First 20 \\| Format-Table Path,LineNumber,Line -AutoSize\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   }
 }

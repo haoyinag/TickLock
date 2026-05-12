@@ -26,10 +26,7 @@ use super::{list_all, Theme};
 /// Returns the `RecommendedWatcher` — drop it to stop watching.
 /// The watcher must outlive the app; store it in Tauri managed state or a
 /// `static` to prevent it from being dropped early.
-pub fn spawn_watcher(
-    app_data_dir: PathBuf,
-    app: AppHandle,
-) -> Option<RecommendedWatcher> {
+pub fn spawn_watcher(app_data_dir: PathBuf, app: AppHandle) -> Option<RecommendedWatcher> {
     let themes_dir = app_data_dir.join("themes");
 
     // Ensure the custom themes directory exists.
@@ -49,7 +46,10 @@ pub fn spawn_watcher(
     };
 
     if let Err(e) = watcher.watch(&themes_dir, RecursiveMode::NonRecursive) {
-        log::warn!("[themes/watcher] failed to watch {}: {e}", themes_dir.display());
+        log::warn!(
+            "[themes/watcher] failed to watch {}: {e}",
+            themes_dir.display()
+        );
         return None;
     }
 
@@ -68,11 +68,7 @@ pub fn spawn_watcher(
 
 const DEBOUNCE: Duration = Duration::from_millis(500);
 
-fn debounce_loop(
-    rx: mpsc::Receiver<notify::Result<Event>>,
-    app_data_dir: &Path,
-    app: &AppHandle,
-) {
+fn debounce_loop(rx: mpsc::Receiver<notify::Result<Event>>, app_data_dir: &Path, app: &AppHandle) {
     while let Ok(first) = rx.recv() {
         match first {
             Err(e) => {

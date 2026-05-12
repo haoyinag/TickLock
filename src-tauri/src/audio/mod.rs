@@ -15,8 +15,8 @@
 ///   and falls back to the embedded bytes if the file is missing or unreadable.
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
 use rodio::{Decoder, DeviceSinkBuilder, Player};
 
@@ -133,7 +133,11 @@ impl AudioManager {
                 AudioCue::Tick => None,
             }
         };
-        let _ = self.tx.try_send(PlayRequest { cue, custom_path, volume });
+        let _ = self.tx.try_send(PlayRequest {
+            cue,
+            custom_path,
+            volume,
+        });
     }
 
     /// Returns true if tick sounds are enabled for the given round type string.
@@ -247,7 +251,10 @@ fn audio_thread(rx: mpsc::Receiver<PlayRequest>) {
         let used_custom = if let Some(path) = req.custom_path {
             match std::fs::File::open(&path).map(std::io::BufReader::new) {
                 Ok(reader) => match Decoder::new(reader) {
-                    Ok(source) => { player.append(source); true }
+                    Ok(source) => {
+                        player.append(source);
+                        true
+                    }
                     Err(e) => {
                         log::warn!("[audio] decode error for {path:?}: {e}");
                         false

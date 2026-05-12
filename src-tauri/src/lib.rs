@@ -16,20 +16,12 @@ use tauri::Manager;
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
 
 use commands::{
-    accessibility_trusted,
-    tray_supported,
-    app_version,
-    check_update,
-    install_update,
-    audio_clear_custom, audio_get_custom_info, audio_set_custom,
-    get_log_dir, open_log_dir,
-    notification_show,
-    settings_get, settings_reset_defaults, settings_set,
-    shortcuts_reload,
-    sessions_clear,
-    stats_get_detailed, stats_get_heatmap,
-    themes_list,
-    timer_get_state, timer_reset, timer_restart_round, timer_skip, timer_toggle,
+    accessibility_trusted, app_version, audio_clear_custom, audio_get_custom_info,
+    audio_set_custom, check_update, get_log_dir, install_update, notification_show, open_log_dir,
+    sessions_clear, settings_get, settings_reset_defaults, settings_set, shortcuts_reload,
+    spawn_overlay_monitor, stats_get_detailed, stats_get_heatmap, themes_list, timer_get_state,
+    timer_reset, timer_restart_round, timer_skip, timer_toggle, tray_supported,
+    window_adjust_overlay_size, window_get_cursor_position, window_reset_overlay_size,
     window_set_clickthrough, window_set_mode, window_set_opacity, window_set_visibility,
     window_toggle_lock,
 };
@@ -61,8 +53,7 @@ pub fn run() {
                 .app_data_dir()
                 .expect("failed to resolve app data directory");
 
-            std::fs::create_dir_all(&app_data_dir)
-                .expect("failed to create app data directory");
+            std::fs::create_dir_all(&app_data_dir).expect("failed to create app data directory");
 
             // --- Database ---
             let db = match db::open(&app_data_dir) {
@@ -116,7 +107,8 @@ pub fn run() {
                 _ => &initial_settings.theme_light,
             };
             if let Some(theme) = themes::find(&app_data_dir, tray_theme_name) {
-                *tray_state.colors.lock().unwrap() = tray::TrayColors::from_colors_map(&theme.colors);
+                *tray_state.colors.lock().unwrap() =
+                    tray::TrayColors::from_colors_map(&theme.colors);
             }
 
             // --- Audio engine (optional — graceful if no audio device) ---
@@ -139,15 +131,13 @@ pub fn run() {
             );
             app.manage(timer);
 
-            // Create initial tray icon if tray_icon_enabled is on, or if an
-            // existing user has min_to_tray enabled (backwards compatibility).
-            //
-            // On Linux, TrayIconBuilder::build() can block the main thread
-            // indefinitely on KDE Plasma 6 / Wayland while waiting for the
-            // StatusNotifierWatcher D-Bus service to respond.  Spawning on a
-            // background thread lets setup() return so the event loop starts
-            // and the window can appear while the tray registers asynchronously.
-            if initial_settings.tray_icon_enabled || initial_settings.min_to_tray {
+            // Create initial tray icon if tray_icon_enabled or min_to_tray is on,
+            // or if overlay lock is enabled so the user can recover from click-
+            // through mode.
+            if initial_settings.tray_icon_enabled
+                || initial_settings.min_to_tray
+                || initial_settings.overlay_locked_clickthrough
+            {
                 #[cfg(target_os = "linux")]
                 {
                     let app_handle = app.handle().clone();
@@ -163,10 +153,9 @@ pub fn run() {
             // --- Theme hot-reload watcher ---
             // The watcher must stay alive for the duration of the app.
             // Wrap in a Mutex so it satisfies Send + Sync for Tauri manage.
-            if let Some(watcher) = themes::watcher::spawn_watcher(
-                app_data_dir.clone(),
-                app.handle().clone(),
-            ) {
+            if let Some(watcher) =
+                themes::watcher::spawn_watcher(app_data_dir.clone(), app.handle().clone())
+            {
                 app.manage(std::sync::Mutex::new(watcher));
             }
 
@@ -221,8 +210,7 @@ pub fn run() {
                     if let RawWindowHandle::AppKit(h) = handle.as_raw() {
                         let ns_view = h.ns_view.as_ptr() as *mut AnyObject;
                         // SAFETY: ns_view is a valid NSView* supplied by Tauri/WRY.
-                        let ns_window: *mut AnyObject =
-                            unsafe { msg_send![ns_view, window] };
+                        let ns_window: *mut AnyObject = unsafe { msg_send![ns_view, window] };
 
                         // NSWindowCollectionBehaviorManaged        = 1 << 2  (tiling)
                         // NSWindowCollectionBehaviorFullScreenPrimary = 1 << 10 (full-screen)
@@ -239,31 +227,25 @@ pub fn run() {
                                 std::ffi::CStr::from_bytes_with_nul_unchecked(b"NSApplication\0"),
                             );
                             if let Some(cls) = ns_app_class {
-                                let ns_app: *mut AnyObject =
-                                    msg_send![cls, sharedApplication];
-                                let main_menu: *mut AnyObject =
-                                    msg_send![ns_app, mainMenu];
+                                let ns_app: *mut AnyObject = msg_send![cls, sharedApplication];
+                                let main_menu: *mut AnyObject = msg_send![ns_app, mainMenu];
                                 if !main_menu.is_null() {
-                                    let count: isize =
-                                        msg_send![main_menu, numberOfItems];
+                                    let count: isize = msg_send![main_menu, numberOfItems];
                                     for i in 0..count {
                                         let item: *mut AnyObject =
                                             msg_send![main_menu, itemAtIndex: i];
-                                        let submenu: *mut AnyObject =
-                                            msg_send![item, submenu];
+                                        let submenu: *mut AnyObject = msg_send![item, submenu];
                                         if submenu.is_null() {
                                             continue;
                                         }
-                                        let title: *mut AnyObject =
-                                            msg_send![item, title];
+                                        let title: *mut AnyObject = msg_send![item, title];
                                         let utf8: *const std::ffi::c_char =
                                             msg_send![title, UTF8String];
                                         if utf8.is_null() {
                                             continue;
                                         }
-                                        let s = std::ffi::CStr::from_ptr(utf8)
-                                            .to_str()
-                                            .unwrap_or("");
+                                        let s =
+                                            std::ffi::CStr::from_ptr(utf8).to_str().unwrap_or("");
                                         if s == "Window" {
                                             let _: () = msg_send![
                                                 ns_app,
@@ -279,51 +261,35 @@ pub fn run() {
                 }
             }
 
-            // Apply always-on-top from saved settings on startup.
-            if initial_settings.always_on_top {
-                let _ = main_window.set_always_on_top(true);
-            }
-            if initial_settings.overlay_mode_enabled {
-                let _ = main_window.set_size(tauri::PhysicalSize::new(220, 220));
-                let _ = main_window.set_resizable(false);
-                let _ = main_window.set_always_on_top(true);
-            } else {
-                let _ = main_window.set_resizable(true);
-            }
-            let _ = main_window.set_ignore_cursor_events(
-                initial_settings.overlay_mode_enabled && initial_settings.overlay_locked_clickthrough,
-            );
+            // Main timer window is now a single floating ball experience.
+            let initial_ball_size = initial_settings
+                .window_width
+                .zip(initial_settings.window_height)
+                .map(|(w, h)| w.max(h))
+                .unwrap_or(220)
+                .clamp(
+                    initial_settings.overlay_min_size,
+                    initial_settings.overlay_max_size,
+                );
+            let _ = main_window.set_min_size(Some(tauri::PhysicalSize::new(
+                initial_settings.overlay_min_size,
+                initial_settings.overlay_min_size,
+            )));
+            let _ = main_window.set_max_size(Some(tauri::PhysicalSize::new(
+                initial_settings.overlay_max_size,
+                initial_settings.overlay_max_size,
+            )));
+            let _ = main_window.set_size(tauri::PhysicalSize::new(
+                initial_ball_size,
+                initial_ball_size,
+            ));
+            let _ = main_window.set_resizable(!initial_settings.overlay_locked_clickthrough);
+            let _ = main_window.set_shadow(!initial_settings.overlay_locked_clickthrough);
+            let _ = main_window.set_always_on_top(initial_settings.always_on_top);
+            let _ =
+                main_window.set_ignore_cursor_events(initial_settings.overlay_locked_clickthrough);
 
-            // Restore saved window position/size if all four values are present and
-            // the saved rectangle still intersects at least one connected monitor.
-            if let (Some(wx), Some(wy), Some(ww), Some(wh)) = (
-                initial_settings.window_x,
-                initial_settings.window_y,
-                initial_settings.window_width,
-                initial_settings.window_height,
-            ) {
-                let on_screen = app
-                    .available_monitors()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .any(|m| {
-                        let mp = m.position();
-                        let ms = m.size();
-                        let mx0 = mp.x as i64;
-                        let my0 = mp.y as i64;
-                        let mx1 = mx0 + ms.width as i64;
-                        let my1 = my0 + ms.height as i64;
-                        let wx0 = wx as i64;
-                        let wy0 = wy as i64;
-                        let wx1 = wx0 + ww as i64;
-                        let wy1 = wy0 + wh as i64;
-                        wx0 < mx1 && wx1 > mx0 && wy0 < my1 && wy1 > my0
-                    });
-                if on_screen {
-                    let _ = main_window.set_position(tauri::PhysicalPosition::new(wx, wy));
-                    let _ = main_window.set_size(tauri::PhysicalSize::new(ww, wh));
-                }
-            }
+            spawn_overlay_monitor(app.handle().clone(), db.clone(), Arc::clone(&tray_state));
 
             // Persist window position/size on move and resize, and close child windows
             // when the main window is truly closed (not hidden to tray).
@@ -361,13 +327,23 @@ pub fn run() {
                     }
                     tauri::WindowEvent::Resized(size) => {
                         if let Ok(conn) = db_for_pos.lock() {
-                            let _ = settings::save_setting(&conn, "window_width", &size.width.to_string());
-                            let _ = settings::save_setting(&conn, "window_height", &size.height.to_string());
+                            let _ = settings::save_setting(
+                                &conn,
+                                "window_width",
+                                &size.width.to_string(),
+                            );
+                            let _ = settings::save_setting(
+                                &conn,
+                                "window_height",
+                                &size.height.to_string(),
+                            );
                             // Also capture position, since some window managers shift the
                             // window origin when resizing.
                             if let Ok(pos) = win_for_pos.outer_position() {
-                                let _ = settings::save_setting(&conn, "window_x", &pos.x.to_string());
-                                let _ = settings::save_setting(&conn, "window_y", &pos.y.to_string());
+                                let _ =
+                                    settings::save_setting(&conn, "window_x", &pos.x.to_string());
+                                let _ =
+                                    settings::save_setting(&conn, "window_y", &pos.y.to_string());
                             }
                         }
                     }
@@ -399,6 +375,9 @@ pub fn run() {
             window_set_visibility,
             window_set_opacity,
             window_set_clickthrough,
+            window_adjust_overlay_size,
+            window_reset_overlay_size,
+            window_get_cursor_position,
             window_set_mode,
             window_toggle_lock,
             // Shortcuts

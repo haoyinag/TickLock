@@ -3,13 +3,15 @@
 /// Commands are grouped by domain: Timer, Settings, Themes, Stats.
 /// Each command returns `Result<T, String>` so errors surface cleanly in JS.
 use log::LevelFilter;
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::audio::{self, AudioManager};
-use crate::notifications;
 use crate::db::{queries, DbState};
+use crate::notifications;
 use crate::settings::{self, Settings};
 use crate::shortcuts;
 use crate::themes::{self, Theme};
@@ -17,17 +19,43 @@ use crate::timer::{TimerController, TimerSnapshot};
 use crate::tray::{self, TrayState};
 use crate::websocket::{self, WsState};
 
+const DEFAULT_WINDOW_WIDTH: u32 = 360;
+const DEFAULT_WINDOW_HEIGHT: u32 = 478;
 const OVERLAY_SIZE: u32 = 220;
+const OVERLAY_MIN_SIZE: u32 = 90;
+const OVERLAY_MAX_SIZE: u32 = 1000;
+const OVERLAY_MONITOR_INTERVAL: Duration = Duration::from_millis(150);
 
-fn apply_overlay_mode(window: &tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+fn normal_window_size(settings: &Settings) -> tauri::PhysicalSize<u32> {
+    let width = settings
+        .window_width
+        .filter(|w| *w > OVERLAY_MAX_SIZE)
+        .unwrap_or(DEFAULT_WINDOW_WIDTH);
+    let height = settings
+        .window_height
+        .filter(|h| *h > OVERLAY_MAX_SIZE)
+        .unwrap_or(DEFAULT_WINDOW_HEIGHT);
+    tauri::PhysicalSize::new(width, height)
+}
+
+fn apply_overlay_mode(window: &tauri::WebviewWindow, settings: &Settings) -> Result<(), String> {
+    let enabled = settings.overlay_mode_enabled;
     if enabled {
         window
             .set_size(tauri::PhysicalSize::new(OVERLAY_SIZE, OVERLAY_SIZE))
             .map_err(|e| e.to_string())?;
         window.set_resizable(false).map_err(|e| e.to_string())?;
-        window.set_always_on_top(true).map_err(|e| e.to_string())?;
+        window
+            .set_always_on_top(settings.always_on_top)
+            .map_err(|e| e.to_string())?;
     } else {
+        window
+            .set_size(normal_window_size(settings))
+            .map_err(|e| e.to_string())?;
         window.set_resizable(true).map_err(|e| e.to_string())?;
+        window
+            .set_always_on_top(settings.always_on_top)
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -36,6 +64,99 @@ fn apply_clickthrough(window: &tauri::WebviewWindow, enabled: bool) -> Result<()
     window
         .set_ignore_cursor_events(enabled)
         .map_err(|e| e.to_string())
+}
+
+fn apply_overlay_lock_chrome(window: &tauri::WebviewWindow, locked: bool) {
+    let _ = window.set_resizable(!locked);
+    let _ = window.set_shadow(!locked);
+}
+
+fn apply_overlay_size_constraints(
+    window: &tauri::WebviewWindow,
+    settings: &Settings,
+) -> Result<(), String> {
+    let min = settings
+        .overlay_min_size
+        .clamp(OVERLAY_MIN_SIZE, OVERLAY_MAX_SIZE);
+    let max = settings.overlay_max_size.clamp(min, OVERLAY_MAX_SIZE);
+    window
+        .set_min_size(Some(tauri::PhysicalSize::new(min, min)))
+        .map_err(|e| e.to_string())?;
+    window
+        .set_max_size(Some(tauri::PhysicalSize::new(max, max)))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub(crate) fn toggle_overlay_lock_state(
+    db: &DbState,
+    tray_state: &Arc<TrayState>,
+    app: AppHandle,
+) -> Result<Settings, String> {
+    let settings = {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+        let current = settings::load(&conn).map_err(|e| e.to_string())?;
+        let next = (!current.overlay_locked_clickthrough).to_string();
+        settings::save_setting(&conn, "overlay_locked_clickthrough", &next)
+            .map_err(|e| e.to_string())?;
+        settings::load(&conn).map_err(|e| e.to_string())?
+    };
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    apply_clickthrough(&window, settings.overlay_locked_clickthrough)?;
+    apply_overlay_lock_chrome(&window, settings.overlay_locked_clickthrough);
+    let _ = apply_overlay_size_constraints(&window, &settings);
+    sync_tray_visibility(&app, tray_state, &settings);
+    app.emit("settings:changed", &settings).ok();
+    Ok(settings)
+}
+
+fn should_show_tray(settings: &Settings) -> bool {
+    settings.tray_icon_enabled || settings.min_to_tray || settings.overlay_locked_clickthrough
+}
+
+fn sync_tray_visibility(app: &AppHandle, tray_state: &Arc<TrayState>, settings: &Settings) {
+    let is_visible = tray_state.icon.lock().unwrap().is_some();
+    let needs_tray = should_show_tray(settings);
+
+    if needs_tray && !is_visible {
+        #[cfg(target_os = "linux")]
+        {
+            let app_handle = app.clone();
+            let ts = Arc::clone(tray_state);
+            std::thread::spawn(move || {
+                tray::create_tray(&app_handle, &ts);
+            });
+        }
+        #[cfg(not(target_os = "linux"))]
+        tray::create_tray(app, tray_state);
+    }
+
+    if !needs_tray && is_visible {
+        tray::destroy_tray(tray_state);
+    }
+}
+
+pub(crate) fn spawn_overlay_monitor(app: AppHandle, db: DbState, tray_state: Arc<TrayState>) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(OVERLAY_MONITOR_INTERVAL).await;
+
+            let Some(window) = app.get_webview_window("main") else {
+                continue;
+            };
+            let settings = db.lock().ok().and_then(|conn| settings::load(&conn).ok());
+            let Some(settings) = settings else {
+                continue;
+            };
+
+            let _ = apply_clickthrough(&window, settings.overlay_locked_clickthrough);
+            apply_overlay_lock_chrome(&window, settings.overlay_locked_clickthrough);
+            sync_tray_visibility(&app, &tray_state, &settings);
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +236,8 @@ pub fn settings_set(
         // restore from.
         if key == "tray_icon_enabled" && value == "false" {
             settings::save_setting(&conn, "min_to_tray", "false").map_err(|e| e.to_string())?;
-            settings::save_setting(&conn, "min_to_tray_on_close", "false").map_err(|e| e.to_string())?;
+            settings::save_setting(&conn, "min_to_tray_on_close", "false")
+                .map_err(|e| e.to_string())?;
         }
         settings::load(&conn).map_err(|e| {
             log::error!("[settings] failed to reload after save: {e}");
@@ -149,16 +271,10 @@ pub fn settings_set(
         audio.apply_settings(&new_settings);
     }
 
-    // Apply always-on-top window flag immediately when the setting changes,
-    // accounting for the current round type so break_always_on_top takes
-    // effect without waiting for the next round transition.
-    if matches!(key.as_str(), "always_on_top" | "break_always_on_top") {
+    // Apply the floating ball's always-on-top flag immediately when changed.
+    if key == "always_on_top" {
         if let Some(window) = app.get_webview_window("main") {
-            let snap = timer.get_snapshot();
-            let is_break = snap.round_type != "work";
-            let effective_aot = new_settings.always_on_top
-                && !(new_settings.break_always_on_top && is_break);
-            let _ = window.set_always_on_top(effective_aot);
+            let _ = window.set_always_on_top(new_settings.always_on_top);
         }
     }
 
@@ -169,20 +285,30 @@ pub fn settings_set(
 
     if key == "overlay_mode_enabled" {
         if let Some(window) = app.get_webview_window("main") {
-            let _ = apply_overlay_mode(&window, new_settings.overlay_mode_enabled);
-            let _ = apply_clickthrough(
-                &window,
-                new_settings.overlay_mode_enabled && new_settings.overlay_locked_clickthrough,
-            );
+            let _ = apply_overlay_mode(&window, &new_settings);
+            let _ = apply_clickthrough(&window, new_settings.overlay_locked_clickthrough);
+            apply_overlay_lock_chrome(&window, new_settings.overlay_locked_clickthrough);
         }
     }
 
     if key == "overlay_locked_clickthrough" {
         if let Some(window) = app.get_webview_window("main") {
-            let _ = apply_clickthrough(
-                &window,
-                new_settings.overlay_mode_enabled && new_settings.overlay_locked_clickthrough,
-            );
+            let _ = apply_clickthrough(&window, new_settings.overlay_locked_clickthrough);
+            apply_overlay_lock_chrome(&window, new_settings.overlay_locked_clickthrough);
+        }
+    }
+
+    if matches!(key.as_str(), "overlay_min_size" | "overlay_max_size") {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = apply_overlay_size_constraints(&window, &new_settings);
+            if let Ok(current) = window.inner_size() {
+                let min = new_settings
+                    .overlay_min_size
+                    .clamp(OVERLAY_MIN_SIZE, OVERLAY_MAX_SIZE);
+                let max = new_settings.overlay_max_size.clamp(min, OVERLAY_MAX_SIZE);
+                let next = current.width.max(current.height).clamp(min, max);
+                let _ = window.set_size(tauri::PhysicalSize::new(next, next));
+            }
         }
     }
 
@@ -218,29 +344,26 @@ pub fn settings_set(
         }
     }
 
-    // Create or destroy the tray when tray_icon_enabled or min_to_tray changes.
-    // The tray exists when either flag is true.
-    // On Linux, spawn tray creation on a background thread to avoid blocking
-    // the main thread on KDE Plasma 6 / Wayland (D-Bus StatusNotifier hang).
-    if matches!(key.as_str(), "tray_icon_enabled" | "min_to_tray") {
-        if new_settings.tray_icon_enabled || new_settings.min_to_tray {
-            #[cfg(target_os = "linux")]
-            {
-                let app_handle = app.clone();
-                let ts = Arc::clone(&tray_state);
-                std::thread::spawn(move || {
-                    tray::create_tray(&app_handle, &ts);
-                });
-            }
-            #[cfg(not(target_os = "linux"))]
-            tray::create_tray(&app, &tray_state);
-        } else {
-            tray::destroy_tray(&tray_state);
-        }
+    // Create or destroy the tray when the relevant settings change.
+    if matches!(
+        key.as_str(),
+        "tray_icon_enabled"
+            | "min_to_tray"
+            | "overlay_mode_enabled"
+            | "overlay_locked_clickthrough"
+    ) {
+        sync_tray_visibility(&app, &tray_state, &new_settings);
     }
 
     // Re-register global shortcuts when any shortcut key changes or the enabled flag toggles.
-    if matches!(key.as_str(), "shortcut_toggle" | "shortcut_reset" | "shortcut_skip" | "shortcut_restart" | "global_shortcuts_enabled") {
+    if matches!(
+        key.as_str(),
+        "shortcut_toggle"
+            | "shortcut_reset"
+            | "shortcut_skip"
+            | "shortcut_restart"
+            | "global_shortcuts_enabled"
+    ) {
         shortcuts::register_all(&app, &new_settings);
     }
 
@@ -351,10 +474,7 @@ pub fn settings_reset_defaults(
 /// List all available themes (17 bundled + any user-created ones).
 #[tauri::command]
 pub fn themes_list(app: AppHandle) -> Result<Vec<Theme>, String> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     Ok(themes::list_all(&data_dir))
 }
 
@@ -396,7 +516,11 @@ pub fn stats_get_detailed(db: State<'_, DbState>) -> Result<DetailedStats, Strin
         log::error!("[stats] failed to query streak: {e}");
         e.to_string()
     })?;
-    Ok(DetailedStats { today, week, streak })
+    Ok(DetailedStats {
+        today,
+        week,
+        streak,
+    })
 }
 
 /// Heatmap data + lifetime totals for the All Time tab.
@@ -443,13 +567,34 @@ pub fn window_set_visibility(visible: bool, app: AppHandle) -> Result<(), String
     Ok(())
 }
 
+/// Return the current cursor position relative to the main window.
+#[derive(Serialize)]
+pub struct WindowCursorPosition {
+    x: f64,
+    y: f64,
+}
+
+#[tauri::command]
+pub fn window_get_cursor_position(app: AppHandle) -> Result<WindowCursorPosition, String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    let pos = window.cursor_position().map_err(|e| e.to_string())?;
+    Ok(WindowCursorPosition { x: pos.x, y: pos.y })
+}
+
 /// Set the main window opacity (clamped to 0.2–1.0).
 #[tauri::command]
 pub fn window_set_opacity(opacity: f32, app: AppHandle) -> Result<(), String> {
-    let _window = app
+    let window = app
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
-    let _clamped = opacity.clamp(0.2, 1.0);
+    let clamped = opacity.clamp(0.2, 1.0);
+    let js = format!(
+        "(function() {{ var el = document.querySelector('.floating-ball'); if (el) el.style.setProperty('--shell-opacity', '{}'); }})();",
+        clamped
+    );
+    window.eval(&js).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -462,40 +607,86 @@ pub fn window_set_clickthrough(enabled: bool, app: AppHandle) -> Result<(), Stri
     apply_clickthrough(&window, enabled)
 }
 
-/// Toggle between overlay and normal window mode for the main window.
+/// Resize the floating overlay by a signed pixel delta, keeping it square.
 #[tauri::command]
-pub fn window_set_mode(mode: String, app: AppHandle) -> Result<(), String> {
+pub fn window_adjust_overlay_size(
+    delta: i32,
+    db: State<'_, DbState>,
+    app: AppHandle,
+) -> Result<u32, String> {
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
-    match mode.as_str() {
-        "overlay" => apply_overlay_mode(&window, true),
-        "window" => apply_overlay_mode(&window, false),
-        _ => Err(format!("unknown window mode: '{mode}'")),
-    }
-}
-
-/// Toggle overlay lock state and return the updated settings.
-#[tauri::command]
-pub fn window_toggle_lock(db: State<'_, DbState>, app: AppHandle) -> Result<Settings, String> {
     let settings = {
         let conn = db.lock().map_err(|e| e.to_string())?;
-        let current = settings::load(&conn).map_err(|e| e.to_string())?;
-        let next = (!current.overlay_locked_clickthrough).to_string();
-        settings::save_setting(&conn, "overlay_locked_clickthrough", &next)
-            .map_err(|e| e.to_string())?;
+        settings::load(&conn).map_err(|e| e.to_string())?
+    };
+    let current = window.inner_size().map_err(|e| e.to_string())?;
+    let base = current.width.max(current.height) as i32;
+    let min = settings
+        .overlay_min_size
+        .clamp(OVERLAY_MIN_SIZE, OVERLAY_MAX_SIZE) as i32;
+    let max = settings
+        .overlay_max_size
+        .clamp(settings.overlay_min_size, OVERLAY_MAX_SIZE) as i32;
+    let next = (base + delta).clamp(min, max) as u32;
+    window
+        .set_size(tauri::PhysicalSize::new(next, next))
+        .map_err(|e| e.to_string())?;
+    Ok(next)
+}
+
+/// Reset the floating overlay to its default square size.
+#[tauri::command]
+pub fn window_reset_overlay_size(app: AppHandle) -> Result<u32, String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    window
+        .set_size(tauri::PhysicalSize::new(OVERLAY_SIZE, OVERLAY_SIZE))
+        .map_err(|e| e.to_string())?;
+    Ok(OVERLAY_SIZE)
+}
+
+/// Keep the main timer in floating ball mode.
+#[tauri::command]
+pub fn window_set_mode(
+    mode: String,
+    db: State<'_, DbState>,
+    tray_state: State<'_, Arc<TrayState>>,
+    app: AppHandle,
+) -> Result<Settings, String> {
+    if mode != "overlay" {
+        return Err(
+            "window mode has been removed; main timer is always a floating ball".to_string(),
+        );
+    }
+
+    let settings = {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+        settings::save_setting(&conn, "overlay_mode_enabled", "true").map_err(|e| e.to_string())?;
         settings::load(&conn).map_err(|e| e.to_string())?
     };
 
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
-    apply_clickthrough(
-        &window,
-        settings.overlay_mode_enabled && settings.overlay_locked_clickthrough,
-    )?;
+    apply_overlay_mode(&window, &settings)?;
+    apply_overlay_size_constraints(&window, &settings)?;
+    apply_clickthrough(&window, settings.overlay_locked_clickthrough)?;
+    sync_tray_visibility(&app, &tray_state, &settings);
     app.emit("settings:changed", &settings).ok();
     Ok(settings)
+}
+
+/// Toggle overlay lock state and return the updated settings.
+#[tauri::command]
+pub fn window_toggle_lock(
+    db: State<'_, DbState>,
+    tray_state: State<'_, Arc<TrayState>>,
+    app: AppHandle,
+) -> Result<Settings, String> {
+    toggle_overlay_lock_state(&*db, &*tray_state, app)
 }
 
 // ---------------------------------------------------------------------------
@@ -533,10 +724,7 @@ pub fn audio_set_custom(
     std::fs::create_dir_all(&audio_dir).map_err(|e| e.to_string())?;
 
     let src = std::path::Path::new(&src_path);
-    let ext = src
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("mp3");
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("mp3");
 
     // Remove any existing custom file for this slot (preserves zero orphans).
     if let Ok(entries) = std::fs::read_dir(&audio_dir) {
@@ -610,8 +798,11 @@ pub fn audio_clear_custom(
     // Remove the persisted display name.
     let name_key = cue_to_name_key(&cue)?;
     let conn = db.lock().map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM settings WHERE key = ?1", rusqlite::params![name_key])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM settings WHERE key = ?1",
+        rusqlite::params![name_key],
+    )
+    .map_err(|e| e.to_string())?;
 
     log::info!("[audio] custom sound cleared cue={cue}");
     Ok(())
@@ -638,7 +829,8 @@ pub fn audio_get_custom_info(
         settings::get_setting(&conn, key).or_else(|| stored.clone())
     };
     info.work_alert = override_name(&info.work_alert, "custom_work_alert_name");
-    info.short_break_alert = override_name(&info.short_break_alert, "custom_short_break_alert_name");
+    info.short_break_alert =
+        override_name(&info.short_break_alert, "custom_short_break_alert_name");
     info.long_break_alert = override_name(&info.long_break_alert, "custom_long_break_alert_name");
 
     Ok(info)
@@ -849,8 +1041,8 @@ pub struct HeatmapStats {
 
 #[cfg(test)]
 mod tests {
-    use rusqlite::Connection;
     use crate::db::migrations;
+    use rusqlite::Connection;
 
     fn setup() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
@@ -859,24 +1051,31 @@ mod tests {
     }
 
     fn seed_sessions(conn: &Connection) {
-        conn.execute_batch("
+        conn.execute_batch(
+            "
             INSERT INTO sessions (started_at, ended_at, round_type, duration_secs, completed)
             VALUES (1000, 1060, 'work', 60, 1),
                    (2000, 2300, 'short-break', 300, 1);
-        ").unwrap();
+        ",
+        )
+        .unwrap();
     }
 
     #[test]
     fn sessions_clear_removes_all_rows() {
         let conn = setup();
         seed_sessions(&conn);
-        let before: i64 = conn.query_row("SELECT COUNT(*) FROM sessions", [], |r| r.get(0)).unwrap();
+        let before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(before, 2);
 
         let n = conn.execute("DELETE FROM sessions", []).unwrap();
         assert_eq!(n, 2);
 
-        let after: i64 = conn.query_row("SELECT COUNT(*) FROM sessions", [], |r| r.get(0)).unwrap();
+        let after: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(after, 0);
     }
 
@@ -887,4 +1086,3 @@ mod tests {
         assert_eq!(n, 0);
     }
 }
-

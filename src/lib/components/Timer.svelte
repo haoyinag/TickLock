@@ -117,7 +117,12 @@
   <div class="timer" style="zoom: {uiScale}">
     <!-- Dial + display stacked (display centered over dial) -->
     <div class="dial-stack">
-      <TimerDial snap={state} countdown={$settings.dial_countdown} />
+      <TimerDial
+        snap={state}
+        countdown={$settings.dial_countdown}
+        colorStart={$settings.overlay_progress_color_start}
+        colorEnd={$settings.overlay_progress_color_end}
+      />
       <TimerDisplay {state} />
     </div>
 
@@ -176,7 +181,7 @@
     {/if}
   </div>
 
-  {#if isCompact}
+  {#if isCompact && !$settings.overlay_locked_clickthrough}
     <MiniControls />
   {/if}
 </div>

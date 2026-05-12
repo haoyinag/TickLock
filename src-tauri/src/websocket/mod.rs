@@ -20,7 +20,10 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State as AxumState},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        State as AxumState,
+    },
     response::IntoResponse,
     routing::get,
     Router,
@@ -214,9 +217,9 @@ async fn handle_client_message(
 
     if let Some("getState") = msg.get("type").and_then(|t| t.as_str()) {
         if let Some(snap) = snapshot {
-            let json = serde_json::to_string(
-                &serde_json::json!({ "type": "state", "payload": snap })
-            ).unwrap_or_default();
+            let json =
+                serde_json::to_string(&serde_json::json!({ "type": "state", "payload": snap }))
+                    .unwrap_or_default();
             let _ = direct_tx.send(json);
         }
     }
@@ -228,22 +231,30 @@ async fn handle_client_message(
 
 /// Broadcast a `started` event to all connected WebSocket clients.
 pub fn broadcast_started(state: &Arc<WsState>, total_secs: u32) {
-    let _ = state.broadcast_tx.send(WsEvent::Started { payload: StartedPayload { total_secs } });
+    let _ = state.broadcast_tx.send(WsEvent::Started {
+        payload: StartedPayload { total_secs },
+    });
 }
 
 /// Broadcast a `roundChange` event to all connected WebSocket clients.
 pub fn broadcast_round_change(state: &Arc<WsState>, snapshot: TimerSnapshot) {
-    let _ = state.broadcast_tx.send(WsEvent::RoundChange { payload: snapshot });
+    let _ = state
+        .broadcast_tx
+        .send(WsEvent::RoundChange { payload: snapshot });
 }
 
 /// Broadcast a `paused` event to all connected WebSocket clients.
 pub fn broadcast_paused(state: &Arc<WsState>, elapsed_secs: u32) {
-    let _ = state.broadcast_tx.send(WsEvent::Paused { payload: ElapsedPayload { elapsed_secs } });
+    let _ = state.broadcast_tx.send(WsEvent::Paused {
+        payload: ElapsedPayload { elapsed_secs },
+    });
 }
 
 /// Broadcast a `resumed` event to all connected WebSocket clients.
 pub fn broadcast_resumed(state: &Arc<WsState>, elapsed_secs: u32) {
-    let _ = state.broadcast_tx.send(WsEvent::Resumed { payload: ElapsedPayload { elapsed_secs } });
+    let _ = state.broadcast_tx.send(WsEvent::Resumed {
+        payload: ElapsedPayload { elapsed_secs },
+    });
 }
 
 /// Broadcast a `reset` event to all connected WebSocket clients.
@@ -283,7 +294,9 @@ mod tests {
 
     #[test]
     fn ws_event_serializes_correctly() {
-        let event = WsEvent::RoundChange { payload: make_snapshot() };
+        let event = WsEvent::RoundChange {
+            payload: make_snapshot(),
+        };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"type\":\"roundChange\""));
         assert!(json.contains("\"elapsed_secs\":60"));
@@ -291,7 +304,9 @@ mod tests {
 
     #[test]
     fn ws_event_started_serializes_correctly() {
-        let event = WsEvent::Started { payload: StartedPayload { total_secs: 1500 } };
+        let event = WsEvent::Started {
+            payload: StartedPayload { total_secs: 1500 },
+        };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"type\":\"started\""));
         assert!(json.contains("\"total_secs\":1500"));
@@ -299,7 +314,9 @@ mod tests {
 
     #[test]
     fn ws_event_paused_serializes_correctly() {
-        let event = WsEvent::Paused { payload: ElapsedPayload { elapsed_secs: 300 } };
+        let event = WsEvent::Paused {
+            payload: ElapsedPayload { elapsed_secs: 300 },
+        };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"type\":\"paused\""));
         assert!(json.contains("\"elapsed_secs\":300"));
@@ -307,7 +324,9 @@ mod tests {
 
     #[test]
     fn ws_event_resumed_serializes_correctly() {
-        let event = WsEvent::Resumed { payload: ElapsedPayload { elapsed_secs: 180 } };
+        let event = WsEvent::Resumed {
+            payload: ElapsedPayload { elapsed_secs: 180 },
+        };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"type\":\"resumed\""));
         assert!(json.contains("\"elapsed_secs\":180"));
@@ -339,21 +358,30 @@ mod tests {
     async fn getstate_no_timer_state_sends_nothing() {
         let (tx, mut rx) = mpsc::unbounded_channel::<String>();
         handle_client_message(r#"{"type":"getState"}"#, None, &tx).await;
-        assert!(rx.try_recv().is_err(), "expected no reply when snapshot is None");
+        assert!(
+            rx.try_recv().is_err(),
+            "expected no reply when snapshot is None"
+        );
     }
 
     #[tokio::test]
     async fn malformed_json_is_silently_ignored() {
         let (tx, mut rx) = mpsc::unbounded_channel::<String>();
         handle_client_message("not valid json {{{", Some(make_snapshot()), &tx).await;
-        assert!(rx.try_recv().is_err(), "expected no reply for malformed JSON");
+        assert!(
+            rx.try_recv().is_err(),
+            "expected no reply for malformed JSON"
+        );
     }
 
     #[tokio::test]
     async fn unknown_message_type_is_ignored() {
         let (tx, mut rx) = mpsc::unbounded_channel::<String>();
         handle_client_message(r#"{"type":"unknownCommand"}"#, Some(make_snapshot()), &tx).await;
-        assert!(rx.try_recv().is_err(), "expected no reply for unknown message type");
+        assert!(
+            rx.try_recv().is_err(),
+            "expected no reply for unknown message type"
+        );
     }
 
     #[tokio::test]
@@ -362,7 +390,10 @@ mod tests {
         let (direct_tx, mut direct_rx) = mpsc::unbounded_channel::<String>();
         handle_client_message(r#"{"type":"getState"}"#, Some(make_snapshot()), &direct_tx).await;
         // Reply appeared on the direct channel
-        assert!(direct_rx.try_recv().is_ok(), "expected reply on direct channel");
+        assert!(
+            direct_rx.try_recv().is_ok(),
+            "expected reply on direct channel"
+        );
         // Nothing sent to the broadcast channel
         assert_eq!(broadcast_tx.receiver_count(), 0);
     }
@@ -372,10 +403,10 @@ mod tests {
     #[tokio::test]
     async fn integration_getstate_round_trip() {
         use axum::Router;
+        use futures_util::{SinkExt, StreamExt};
         use tokio::net::TcpListener;
         use tokio_tungstenite::connect_async;
         use tokio_tungstenite::tungstenite::Message as TungMessage;
-        use futures_util::{SinkExt, StreamExt};
 
         let snap = make_snapshot();
         let snap_clone = snap.clone();
@@ -383,7 +414,10 @@ mod tests {
             as Arc<dyn Fn() -> Option<TimerSnapshot> + Send + Sync>;
 
         let (broadcast_tx, _) = broadcast::channel::<WsEvent>(8);
-        let server_state = ServerState { broadcast_tx, snapshot_fn };
+        let server_state = ServerState {
+            broadcast_tx,
+            snapshot_fn,
+        };
 
         let router = Router::new()
             .route("/ws", get(ws_handler))
@@ -399,10 +433,14 @@ mod tests {
         let url = format!("ws://127.0.0.1:{port}/ws");
         let (mut ws, _) = connect_async(&url).await.expect("WebSocket connect failed");
 
-        ws.send(TungMessage::Text(r#"{"type":"getState"}"#.into())).await.unwrap();
+        ws.send(TungMessage::Text(r#"{"type":"getState"}"#.into()))
+            .await
+            .unwrap();
 
         let msg = ws.next().await.expect("expected a message").unwrap();
-        let TungMessage::Text(text) = msg else { panic!("expected text frame") };
+        let TungMessage::Text(text) = msg else {
+            panic!("expected text frame")
+        };
         let val: serde_json::Value = serde_json::from_str(&text).unwrap();
 
         assert_eq!(val["type"], "state", "response type should be 'state'");

@@ -17,7 +17,7 @@ const defaults: Settings = {
   min_to_tray: false,
   min_to_tray_on_close: false,
   notifications_enabled: false,
-  always_on_top: false,
+  always_on_top: true,
   break_always_on_top: false,
   volume: 1.0,
   tick_sounds_during_work: false,
@@ -43,9 +43,13 @@ const defaults: Settings = {
   local_shortcut_volume_up: 'ArrowUp',
   local_shortcut_mute: 'm',
   local_shortcut_fullscreen: 'F11',
-  window_opacity: 1.0,
-  overlay_mode_enabled: false,
+  window_opacity: 0.85,
+  overlay_mode_enabled: true,
   overlay_locked_clickthrough: true,
+  overlay_min_size: 90,
+  overlay_max_size: 420,
+  overlay_progress_color_start: '#ff7a45',
+  overlay_progress_color_end: '#ff2d75',
 };
 
 export const settings = writable<Settings>(defaults);

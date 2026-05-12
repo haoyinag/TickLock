@@ -46,7 +46,8 @@
   .mini-controls {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
+    filter: drop-shadow(0 2px 8px color-mix(in oklch, black 35%, transparent));
   }
 
   .btn-side {
@@ -55,19 +56,22 @@
     justify-content: center;
     width: 24px;
     height: 24px;
-    background: none;
-    border: none;
-    border-radius: 3px;
+    background: color-mix(in oklch, var(--color-background-light) 48%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-foreground) 24%, transparent);
+    border-radius: 50%;
     cursor: pointer;
-    color: var(--color-foreground-darker, var(--color-foreground));
+    color: var(--color-foreground);
+    backdrop-filter: blur(10px);
     transition:
       color var(--transition-default),
+      border-color var(--transition-default),
       background var(--transition-default);
   }
 
   .btn-side:hover {
-    color: var(--color-foreground);
-    background: var(--color-hover);
+    color: var(--color-accent);
+    border-color: color-mix(in oklch, var(--color-accent) 70%, transparent);
+    background: color-mix(in oklch, var(--color-accent) 16%, transparent);
   }
 
   .play-pause {
@@ -76,11 +80,12 @@
     justify-content: center;
     width: 24px;
     height: 24px;
-    background: none;
-    border: 1.5px solid var(--color-foreground-darker, var(--color-foreground));
+    background: color-mix(in oklch, var(--color-background-light) 54%, transparent);
+    border: 1.5px solid color-mix(in oklch, var(--color-foreground) 70%, transparent);
     border-radius: 50%;
     cursor: pointer;
     color: var(--color-foreground);
+    backdrop-filter: blur(10px);
     overflow: hidden;
     transition:
       color var(--transition-default),
@@ -91,7 +96,7 @@
   .play-pause:hover {
     color: var(--color-accent);
     border-color: var(--color-accent);
-    background: var(--color-hover);
+    background: color-mix(in oklch, var(--color-accent) 16%, transparent);
   }
 
   .icon {

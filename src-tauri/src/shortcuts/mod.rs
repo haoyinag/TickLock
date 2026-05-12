@@ -48,22 +48,53 @@ pub fn parse_shortcut(s: &str) -> Option<Shortcut> {
 
 fn parse_code(key: &str) -> Option<Code> {
     Some(match key.to_ascii_lowercase().as_str() {
-        "f1"  => Code::F1,  "f2"  => Code::F2,  "f3"  => Code::F3,
-        "f4"  => Code::F4,  "f5"  => Code::F5,  "f6"  => Code::F6,
-        "f7"  => Code::F7,  "f8"  => Code::F8,  "f9"  => Code::F9,
-        "f10" => Code::F10, "f11" => Code::F11, "f12" => Code::F12,
-        "a" => Code::KeyA, "b" => Code::KeyB, "c" => Code::KeyC,
-        "d" => Code::KeyD, "e" => Code::KeyE, "f" => Code::KeyF,
-        "g" => Code::KeyG, "h" => Code::KeyH, "i" => Code::KeyI,
-        "j" => Code::KeyJ, "k" => Code::KeyK, "l" => Code::KeyL,
-        "m" => Code::KeyM, "n" => Code::KeyN, "o" => Code::KeyO,
-        "p" => Code::KeyP, "q" => Code::KeyQ, "r" => Code::KeyR,
-        "s" => Code::KeyS, "t" => Code::KeyT, "u" => Code::KeyU,
-        "v" => Code::KeyV, "w" => Code::KeyW, "x" => Code::KeyX,
-        "y" => Code::KeyY, "z" => Code::KeyZ,
-        "0" => Code::Digit0, "1" => Code::Digit1, "2" => Code::Digit2,
-        "3" => Code::Digit3, "4" => Code::Digit4, "5" => Code::Digit5,
-        "6" => Code::Digit6, "7" => Code::Digit7, "8" => Code::Digit8,
+        "f1" => Code::F1,
+        "f2" => Code::F2,
+        "f3" => Code::F3,
+        "f4" => Code::F4,
+        "f5" => Code::F5,
+        "f6" => Code::F6,
+        "f7" => Code::F7,
+        "f8" => Code::F8,
+        "f9" => Code::F9,
+        "f10" => Code::F10,
+        "f11" => Code::F11,
+        "f12" => Code::F12,
+        "a" => Code::KeyA,
+        "b" => Code::KeyB,
+        "c" => Code::KeyC,
+        "d" => Code::KeyD,
+        "e" => Code::KeyE,
+        "f" => Code::KeyF,
+        "g" => Code::KeyG,
+        "h" => Code::KeyH,
+        "i" => Code::KeyI,
+        "j" => Code::KeyJ,
+        "k" => Code::KeyK,
+        "l" => Code::KeyL,
+        "m" => Code::KeyM,
+        "n" => Code::KeyN,
+        "o" => Code::KeyO,
+        "p" => Code::KeyP,
+        "q" => Code::KeyQ,
+        "r" => Code::KeyR,
+        "s" => Code::KeyS,
+        "t" => Code::KeyT,
+        "u" => Code::KeyU,
+        "v" => Code::KeyV,
+        "w" => Code::KeyW,
+        "x" => Code::KeyX,
+        "y" => Code::KeyY,
+        "z" => Code::KeyZ,
+        "0" => Code::Digit0,
+        "1" => Code::Digit1,
+        "2" => Code::Digit2,
+        "3" => Code::Digit3,
+        "4" => Code::Digit4,
+        "5" => Code::Digit5,
+        "6" => Code::Digit6,
+        "7" => Code::Digit7,
+        "8" => Code::Digit8,
         "9" => Code::Digit9,
         "space" => Code::Space,
         "enter" | "return" => Code::Enter,
@@ -99,10 +130,13 @@ pub fn register_all(app: &AppHandle, settings: &Settings) {
     }
 
     let shortcuts = [
-        (settings.shortcut_toggle.as_str(),  ShortcutAction::Toggle),
-        (settings.shortcut_reset.as_str(),   ShortcutAction::Reset),
-        (settings.shortcut_skip.as_str(),    ShortcutAction::Skip),
-        (settings.shortcut_restart.as_str(), ShortcutAction::RestartRound),
+        (settings.shortcut_toggle.as_str(), ShortcutAction::Toggle),
+        (settings.shortcut_reset.as_str(), ShortcutAction::Reset),
+        (settings.shortcut_skip.as_str(), ShortcutAction::Skip),
+        (
+            settings.shortcut_restart.as_str(),
+            ShortcutAction::RestartRound,
+        ),
     ];
 
     for (key_str, action) in shortcuts {
@@ -147,9 +181,9 @@ enum ShortcutAction {
 impl ShortcutAction {
     fn as_str(self) -> &'static str {
         match self {
-            Self::Toggle       => "toggle",
-            Self::Reset        => "reset",
-            Self::Skip         => "skip",
+            Self::Toggle => "toggle",
+            Self::Reset => "reset",
+            Self::Skip => "skip",
             Self::RestartRound => "restart-round",
         }
     }
@@ -157,11 +191,13 @@ impl ShortcutAction {
 
 fn fire_action(app: &AppHandle, action: ShortcutAction) {
     log::info!("[shortcut] fired: {}", action.as_str());
-    let Some(timer) = app.try_state::<TimerController>() else { return };
+    let Some(timer) = app.try_state::<TimerController>() else {
+        return;
+    };
     match action {
-        ShortcutAction::Toggle       => timer.toggle(),
-        ShortcutAction::Reset        => timer.reset(),
-        ShortcutAction::Skip         => timer.skip(),
+        ShortcutAction::Toggle => timer.toggle(),
+        ShortcutAction::Reset => timer.reset(),
+        ShortcutAction::Skip => timer.skip(),
         ShortcutAction::RestartRound => timer.restart_round(),
     }
 }
@@ -207,7 +243,10 @@ mod tests {
 
     #[test]
     fn parse_super_modifier() {
-        assert!(parse_shortcut("Super+F1").is_some(), "Super modifier must parse");
+        assert!(
+            parse_shortcut("Super+F1").is_some(),
+            "Super modifier must parse"
+        );
     }
 
     #[test]

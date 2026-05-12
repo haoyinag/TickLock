@@ -9,9 +9,11 @@
   interface Props {
     snap: TimerState;
     countdown?: boolean;
+    colorStart?: string;
+    colorEnd?: string;
   }
 
-  let { snap, countdown = false }: Props = $props();
+  let { snap, countdown = false, colorStart = '#ff7a45', colorEnd = '#ff2d75' }: Props = $props();
 
   // SVG constants (matching original Pomotroid geometry)
   const CIRCUMFERENCE = 691.15; // 2π × 110 ≈ 691.15
@@ -20,12 +22,6 @@
   const dashOffset = tweened(CIRCUMFERENCE, { duration: 800, easing: cubicOut });
 
   // Round-type → CSS custom property for stroke color.
-  function strokeColor(rt: string): string {
-    if (rt === 'work') return 'var(--color-focus-round)';
-    if (rt === 'short-break') return 'var(--color-short-round)';
-    return 'var(--color-long-round)';
-  }
-
   // Track previous round to detect round changes and snap the animation.
   // Not reactive — only used for comparison inside $effect.
   let prevRound = $state<string>('');
@@ -50,12 +46,18 @@
 </script>
 
 <svg class="dial" viewBox="0 0 230 230" aria-hidden="true">
+  <defs>
+    <linearGradient id="progress-gradient" x1="28" y1="28" x2="202" y2="202">
+      <stop offset="0%" stop-color={colorStart} />
+      <stop offset="100%" stop-color={colorEnd} />
+    </linearGradient>
+  </defs>
   <!-- Background track -->
   <path
     class="track"
     d="M115,5c60.8,0,110,49.2,110,110s-49.2,110-110,110S5,175.8,5,115S54.2,5,115,5"
     fill="none"
-    stroke="var(--color-background-light)"
+    stroke="currentColor"
     stroke-width="2"
   />
   <!-- Progress arc -->
@@ -63,7 +65,7 @@
     class="progress"
     d="M115,5c60.8,0,110,49.2,110,110s-49.2,110-110,110S5,175.8,5,115S54.2,5,115,5"
     fill="none"
-    stroke={strokeColor(snap.round_type)}
+    stroke="url(#progress-gradient)"
     stroke-width="10"
     stroke-linecap="round"
     stroke-dasharray={CIRCUMFERENCE}
@@ -76,5 +78,12 @@
     width: 220px;
     height: 220px;
     display: block;
+    color: color-mix(in oklch, var(--color-foreground) 42%, transparent);
+    filter: drop-shadow(0 0 8px color-mix(in oklch, var(--color-foreground) 18%, transparent))
+      drop-shadow(0 2px 10px color-mix(in oklch, black 42%, transparent));
+  }
+
+  .progress {
+    filter: drop-shadow(0 0 7px currentColor);
   }
 </style>

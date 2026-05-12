@@ -66,12 +66,7 @@ pub struct TimerController {
 impl TimerController {
     /// Construct and start the background threads.
     /// Call once from `lib.rs` during Tauri `setup`.
-    pub fn new(
-        app: AppHandle,
-        settings: Settings,
-        tray: Arc<TrayState>,
-        db: DbState,
-    ) -> Self {
+    pub fn new(app: AppHandle, settings: Settings, tray: Arc<TrayState>, db: DbState) -> Self {
         let seq = SequenceState::new(settings.long_break_interval);
         let duration = seq.current_duration_secs(&settings);
 
@@ -173,7 +168,9 @@ impl TimerController {
             let settings = self.settings.lock().unwrap();
             seq.current_duration_secs(&settings)
         };
-        self.engine.send(TimerCommand::Reconfigure { duration_secs: duration });
+        self.engine.send(TimerCommand::Reconfigure {
+            duration_secs: duration,
+        });
     }
 
     // --- Query ---
@@ -185,7 +182,10 @@ impl TimerController {
 
         TimerSnapshot {
             round_type: seq.current_round.as_str().to_string(),
-            previous_round_type: seq.previous_round.map(|r| r.as_str().to_string()).unwrap_or_default(),
+            previous_round_type: seq
+                .previous_round
+                .map(|r| r.as_str().to_string())
+                .unwrap_or_default(),
             elapsed_secs: shared.elapsed_secs,
             total_secs: seq.current_duration_secs(&settings),
             is_running: shared.is_running,
@@ -236,7 +236,14 @@ fn listen_events(
     event_rx: std::sync::mpsc::Receiver<TimerEvent>,
     ctx: ListenContext,
 ) {
-    let ListenContext { sequence, settings, shared, engine, tray, db } = ctx;
+    let ListenContext {
+        sequence,
+        settings,
+        shared,
+        engine,
+        tray,
+        db,
+    } = ctx;
     // Track last tray progress to throttle redraws to ≥ 1% delta.
     let mut last_tray_progress: f32 = -1.0;
     // Active session row ID for recording (None = not started yet).
@@ -247,14 +254,20 @@ fn listen_events(
             TimerEvent::Started { total_secs } => {
                 log::info!("[timer] started total={total_secs}s");
                 shared.lock().unwrap().is_running = true;
-                let _ = app.emit("timer:started", serde_json::json!({ "total_secs": total_secs }));
+                let _ = app.emit(
+                    "timer:started",
+                    serde_json::json!({ "total_secs": total_secs }),
+                );
                 if let Some(ws) = app.try_state::<Arc<WsState>>() {
                     websocket::broadcast_started(&ws, total_secs);
                 }
                 tray::update_menu_items(&tray, true, false);
             }
 
-            TimerEvent::Tick { elapsed_secs, total_secs } => {
+            TimerEvent::Tick {
+                elapsed_secs,
+                total_secs,
+            } => {
                 {
                     let mut s = shared.lock().unwrap();
                     s.elapsed_secs = elapsed_secs;
@@ -301,11 +314,11 @@ fn listen_events(
                 }
             }
 
-            TimerEvent::Complete { skipped: was_skipped } => {
+            TimerEvent::Complete {
+                skipped: was_skipped,
+            } => {
                 let completed_round = sequence.lock().unwrap().current_round.as_str().to_string();
-                log::info!(
-                    "[timer] round complete type={completed_round} skipped={was_skipped}"
-                );
+                log::info!("[timer] round complete type={completed_round} skipped={was_skipped}");
 
                 // --- Session recording: mark the completed round ---
                 if let Some(session_id) = current_session_id.take() {
@@ -353,17 +366,15 @@ fn listen_events(
                     audio.play_cue(cue);
                 }
 
-                // Lower-priority-during-breaks: when always_on_top is on and
-                // break_always_on_top is enabled, disable always-on-top for
-                // breaks and restore it when work resumes.
-                let (always_on_top, break_always_on_top) = {
+                // The main timer is a single floating ball; keep its topmost
+                // state tied directly to the System setting across round changes.
+                let always_on_top = {
                     let s = settings.lock().unwrap();
-                    (s.always_on_top, s.break_always_on_top)
+                    s.always_on_top
                 };
                 if always_on_top {
                     if let Some(window) = app.get_webview_window("main") {
-                        let is_break = next_round != RoundType::Work;
-                        let _ = window.set_always_on_top(!(break_always_on_top && is_break));
+                        let _ = window.set_always_on_top(true);
                     }
                 }
 
@@ -401,7 +412,10 @@ fn listen_events(
             TimerEvent::Paused { elapsed_secs } => {
                 log::info!("[timer] paused elapsed={elapsed_secs}s");
                 shared.lock().unwrap().is_running = false;
-                let _ = app.emit("timer:paused", serde_json::json!({ "elapsed_secs": elapsed_secs }));
+                let _ = app.emit(
+                    "timer:paused",
+                    serde_json::json!({ "elapsed_secs": elapsed_secs }),
+                );
                 if let Some(ws) = app.try_state::<Arc<WsState>>() {
                     websocket::broadcast_paused(&ws, elapsed_secs);
                 }
@@ -413,7 +427,11 @@ fn listen_events(
                     let s = settings.lock().unwrap();
                     seq.current_duration_secs(&s)
                 };
-                let progress = if total > 0 { elapsed_secs as f32 / total as f32 } else { 0.0 };
+                let progress = if total > 0 {
+                    elapsed_secs as f32 / total as f32
+                } else {
+                    0.0
+                };
                 tray::update_icon(&tray, &rt, true, progress);
                 tray::update_menu_items(&tray, false, true);
             }
@@ -421,7 +439,10 @@ fn listen_events(
             TimerEvent::Resumed { elapsed_secs } => {
                 log::info!("[timer] resumed elapsed={elapsed_secs}s");
                 shared.lock().unwrap().is_running = true;
-                let _ = app.emit("timer:resumed", serde_json::json!({ "elapsed_secs": elapsed_secs }));
+                let _ = app.emit(
+                    "timer:resumed",
+                    serde_json::json!({ "elapsed_secs": elapsed_secs }),
+                );
                 if let Some(ws) = app.try_state::<Arc<WsState>>() {
                     websocket::broadcast_resumed(&ws, elapsed_secs);
                 }
@@ -433,7 +454,11 @@ fn listen_events(
                     let s = settings.lock().unwrap();
                     seq.current_duration_secs(&s)
                 };
-                let progress = if total > 0 { elapsed_secs as f32 / total as f32 } else { 0.0 };
+                let progress = if total > 0 {
+                    elapsed_secs as f32 / total as f32
+                } else {
+                    0.0
+                };
                 tray::update_icon(&tray, &rt, false, progress);
                 last_tray_progress = progress;
                 tray::update_menu_items(&tray, true, false);
@@ -465,7 +490,9 @@ fn listen_events(
                     let s = settings.lock().unwrap();
                     seq.current_duration_secs(&s)
                 };
-                engine.send(TimerCommand::Prime { duration_secs: duration });
+                engine.send(TimerCommand::Prime {
+                    duration_secs: duration,
+                });
 
                 // Reset tray to idle (empty arc).
                 let rt = sequence.lock().unwrap().current_round.as_str().to_string();
@@ -489,7 +516,11 @@ fn listen_events(
                     let s = settings.lock().unwrap();
                     seq.current_duration_secs(&s)
                 };
-                let progress = if total > 0 { elapsed_secs as f32 / total as f32 } else { 0.0 };
+                let progress = if total > 0 {
+                    elapsed_secs as f32 / total as f32
+                } else {
+                    0.0
+                };
                 tray::update_icon(&tray, &rt, true, progress);
             }
         }
@@ -507,7 +538,10 @@ fn build_snapshot(
 
     TimerSnapshot {
         round_type: seq.current_round.as_str().to_string(),
-        previous_round_type: seq.previous_round.map(|r| r.as_str().to_string()).unwrap_or_default(),
+        previous_round_type: seq
+            .previous_round
+            .map(|r| r.as_str().to_string())
+            .unwrap_or_default(),
         elapsed_secs: sh.elapsed_secs,
         total_secs: seq.current_duration_secs(&s),
         is_running: sh.is_running,

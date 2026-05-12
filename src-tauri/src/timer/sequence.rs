@@ -233,22 +233,19 @@ mod tests {
         // Expected results of successive advance() calls.
         let expected = vec![
             (RoundType::ShortBreak, 300u32), // Work(1) → ShortBreak
-            (RoundType::Work, 1500),          // ShortBreak → Work(2)
-            (RoundType::ShortBreak, 300),     // Work(2) → ShortBreak
-            (RoundType::Work, 1500),          // ShortBreak → Work(3)
-            (RoundType::ShortBreak, 300),     // Work(3) → ShortBreak
-            (RoundType::Work, 1500),          // ShortBreak → Work(4)
-            (RoundType::LongBreak, 900),      // Work(4) → LongBreak (4 == total)
-            (RoundType::Work, 1500),          // LongBreak → Work(1) — cycle 2
-            (RoundType::ShortBreak, 300),     // Work(1) → ShortBreak
+            (RoundType::Work, 1500),         // ShortBreak → Work(2)
+            (RoundType::ShortBreak, 300),    // Work(2) → ShortBreak
+            (RoundType::Work, 1500),         // ShortBreak → Work(3)
+            (RoundType::ShortBreak, 300),    // Work(3) → ShortBreak
+            (RoundType::Work, 1500),         // ShortBreak → Work(4)
+            (RoundType::LongBreak, 900),     // Work(4) → LongBreak (4 == total)
+            (RoundType::Work, 1500),         // LongBreak → Work(1) — cycle 2
+            (RoundType::ShortBreak, 300),    // Work(1) → ShortBreak
         ];
 
         for (i, (exp_type, exp_dur)) in expected.iter().enumerate() {
             let (rt, dur) = seq.advance(&s);
-            assert_eq!(
-                rt, *exp_type,
-                "step {i}: expected {exp_type:?}, got {rt:?}"
-            );
+            assert_eq!(rt, *exp_type, "step {i}: expected {exp_type:?}, got {rt:?}");
             assert_eq!(
                 dur, *exp_dur,
                 "step {i}: expected duration {exp_dur}, got {dur}"
@@ -277,7 +274,10 @@ mod tests {
 
         // After 24 advances from the initial Work state we should have:
         // 11 short breaks, 1 long break, and 12 work rounds.
-        assert_eq!(short_count, 11, "12-round cycle should have 11 short breaks");
+        assert_eq!(
+            short_count, 11,
+            "12-round cycle should have 11 short breaks"
+        );
         assert_eq!(long_count, 1, "12-round cycle should have 1 long break");
         assert_eq!(work_count, 12, "12-round cycle should have 12 work rounds");
     }
@@ -297,7 +297,10 @@ mod tests {
         assert_eq!(seq.work_round_number, 2, "number stays during long break");
 
         seq.advance(&s); // → Work(1) — cycle reset
-        assert_eq!(seq.work_round_number, 1, "number must reset to 1 after long break");
+        assert_eq!(
+            seq.work_round_number, 1,
+            "number must reset to 1 after long break"
+        );
     }
 
     #[test]
@@ -328,7 +331,8 @@ mod tests {
             seq.advance(&s); // Work(n) → ShortBreak
             seq.advance(&s); // ShortBreak → Work(n+1)
             assert_eq!(
-                seq.work_round_number, expected,
+                seq.work_round_number,
+                expected,
                 "work_round_number should be {expected} after completing round {}",
                 expected - 1
             );
@@ -367,11 +371,18 @@ mod tests {
         assert_eq!(seq.work_round_number, 4);
 
         let (rt, _) = seq.advance(&s);
-        assert_eq!(rt, RoundType::LongBreak, "long break must still fire at round 4");
+        assert_eq!(
+            rt,
+            RoundType::LongBreak,
+            "long break must still fire at round 4"
+        );
 
         let (rt, _) = seq.advance(&s);
         assert_eq!(rt, RoundType::Work);
-        assert_eq!(seq.work_round_number, 1, "counter must reset to 1 after long break");
+        assert_eq!(
+            seq.work_round_number, 1,
+            "counter must reset to 1 after long break"
+        );
     }
 
     #[test]
@@ -382,18 +393,29 @@ mod tests {
 
         // Work(1) → ShortBreak (normal) → Work(2) → ShortBreak (substituted) → Work(1)
         let (rt, _) = seq.advance(&s);
-        assert_eq!(rt, RoundType::ShortBreak, "normal short break before long-break point");
+        assert_eq!(
+            rt,
+            RoundType::ShortBreak,
+            "normal short break before long-break point"
+        );
 
         let (rt, _) = seq.advance(&s);
         assert_eq!(rt, RoundType::Work);
         assert_eq!(seq.work_round_number, 2);
 
         let (rt, _) = seq.advance(&s);
-        assert_eq!(rt, RoundType::ShortBreak, "short break substituted at long-break point");
+        assert_eq!(
+            rt,
+            RoundType::ShortBreak,
+            "short break substituted at long-break point"
+        );
 
         let (rt, _) = seq.advance(&s);
         assert_eq!(rt, RoundType::Work);
-        assert_eq!(seq.work_round_number, 1, "counter must reset to 1 after substituted short break");
+        assert_eq!(
+            seq.work_round_number, 1,
+            "counter must reset to 1 after substituted short break"
+        );
     }
 
     #[test]
@@ -414,7 +436,10 @@ mod tests {
         // At long-break point with both disabled → Work(1)
         let (rt, _) = seq.advance(&s);
         assert_eq!(rt, RoundType::Work);
-        assert_eq!(seq.work_round_number, 1, "counter must reset to 1 at cycle boundary");
+        assert_eq!(
+            seq.work_round_number, 1,
+            "counter must reset to 1 at cycle boundary"
+        );
 
         // Continues correctly in the next cycle.
         let (rt, _) = seq.advance(&s);
@@ -430,17 +455,29 @@ mod tests {
 
         // Work(1) → ShortBreak → Work(2) → ShortBreak → Work(3) → ShortBreak* → Work(1)
         let (rt, _) = seq.advance(&s);
-        assert_eq!(rt, RoundType::ShortBreak, "short break fires at round 1 (before long-break point)");
+        assert_eq!(
+            rt,
+            RoundType::ShortBreak,
+            "short break fires at round 1 (before long-break point)"
+        );
 
         seq.advance(&s); // → Work(2)
 
         let (rt, _) = seq.advance(&s);
-        assert_eq!(rt, RoundType::ShortBreak, "short break fires at round 2 (before long-break point)");
+        assert_eq!(
+            rt,
+            RoundType::ShortBreak,
+            "short break fires at round 2 (before long-break point)"
+        );
 
         seq.advance(&s); // → Work(3)
 
         let (rt, _) = seq.advance(&s);
-        assert_eq!(rt, RoundType::ShortBreak, "short break substituted at long-break point when long=false");
+        assert_eq!(
+            rt,
+            RoundType::ShortBreak,
+            "short break substituted at long-break point when long=false"
+        );
 
         let (rt, _) = seq.advance(&s);
         assert_eq!(rt, RoundType::Work);

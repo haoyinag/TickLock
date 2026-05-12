@@ -93,10 +93,39 @@ const MIGRATION_6: &str = "
 /// Seeds overlay window behavior settings for users upgrading from versions
 /// that did not include floating mode, lock state, or opacity controls.
 const MIGRATION_7: &str = "
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('window_opacity', '1.0');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('window_opacity', '0.25');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_mode_enabled', 'false');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_locked_clickthrough', 'true');
     INSERT INTO schema_version VALUES (7);
+";
+
+/// The first overlay defaults shipped with a very low opacity. Treat that exact
+/// value as the old default and move it to a more usable starting point without
+/// disturbing users who have already chosen another value.
+const MIGRATION_8: &str = "
+    UPDATE settings SET value = '0.85'
+      WHERE key = 'window_opacity' AND value = '0.25';
+    INSERT INTO schema_version VALUES (8);
+";
+
+/// Make the timer's main window a floating ball by default. The setting stays
+/// in storage for compatibility, but it is no longer exposed as a user-facing
+/// window/overlay mode switch.
+const MIGRATION_9: &str = "
+    INSERT INTO settings (key, value) VALUES ('overlay_mode_enabled', 'true')
+      ON CONFLICT(key) DO UPDATE SET value = 'true';
+    INSERT INTO settings (key, value) VALUES ('always_on_top', 'true')
+      ON CONFLICT(key) DO UPDATE SET value = 'true';
+    INSERT INTO schema_version VALUES (9);
+";
+
+/// Adds floating ball sizing constraints and progress gradient color settings.
+const MIGRATION_10: &str = "
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_min_size', '90');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_max_size', '420');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_progress_color_start', '#ff7a45');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_progress_color_end', '#ff2d75');
+    INSERT INTO schema_version VALUES (10);
 ";
 
 /// Apply any pending migrations. Each migration is wrapped in a transaction
@@ -146,6 +175,24 @@ pub fn run(conn: &Connection) -> Result<()> {
         log::info!("[db/migrations] MIGRATION_7 complete");
     }
 
+    if version < 8 {
+        log::info!("[db/migrations] applying MIGRATION_8: adjust overlay opacity default");
+        conn.execute_batch(&format!("BEGIN; {MIGRATION_8} COMMIT;"))?;
+        log::info!("[db/migrations] MIGRATION_8 complete");
+    }
+
+    if version < 9 {
+        log::info!("[db/migrations] applying MIGRATION_9: default to floating ball");
+        conn.execute_batch(&format!("BEGIN; {MIGRATION_9} COMMIT;"))?;
+        log::info!("[db/migrations] MIGRATION_9 complete");
+    }
+
+    if version < 10 {
+        log::info!("[db/migrations] applying MIGRATION_10: floating ball size and gradient");
+        conn.execute_batch(&format!("BEGIN; {MIGRATION_10} COMMIT;"))?;
+        log::info!("[db/migrations] MIGRATION_10 complete");
+    }
+
     Ok(())
 }
 
@@ -181,7 +228,7 @@ mod tests {
         let v: i64 = conn
             .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(v, 7);
+        assert_eq!(v, 10);
     }
 
     #[test]

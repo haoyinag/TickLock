@@ -22,9 +22,11 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
+    AppHandle, Emitter, Manager,
 };
 
+use crate::commands::toggle_overlay_lock_state;
+use crate::db::DbState;
 use crate::timer::TimerController;
 use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
 
@@ -62,7 +64,8 @@ impl TrayColors {
     pub fn from_colors_map(colors: &std::collections::HashMap<String, String>) -> Self {
         let d = Self::default();
         let get = |key: &str, fallback: [u8; 4]| {
-            colors.get(key)
+            colors
+                .get(key)
                 .and_then(|hex| parse_hex_color(hex))
                 .unwrap_or(fallback)
         };
@@ -70,8 +73,8 @@ impl TrayColors {
             background: get("--color-background", d.background),
             focus_round: get("--color-focus-round", d.focus_round),
             short_round: get("--color-short-round", d.short_round),
-            long_round:  get("--color-long-round",  d.long_round),
-            foreground:  get("--color-foreground",   d.foreground),
+            long_round: get("--color-long-round", d.long_round),
+            foreground: get("--color-foreground", d.foreground),
         }
     }
 }
@@ -232,31 +235,86 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
 
     let toggle_item = match MenuItem::with_id(app, "toggle", "Start", true, None::<&str>) {
         Ok(i) => i,
-        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
     };
     let skip_item = match MenuItem::with_id(app, "skip", "Skip", false, None::<&str>) {
         Ok(i) => i,
-        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
     };
-    let reset_item = match MenuItem::with_id(app, "reset-round", "Reset Round", false, None::<&str>) {
+    let reset_item = match MenuItem::with_id(app, "reset-round", "Reset Round", false, None::<&str>)
+    {
         Ok(i) => i,
-        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
     };
     let sep = match PredefinedMenuItem::separator(app) {
         Ok(i) => i,
-        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
     };
     let show_item = match MenuItem::with_id(app, "show", "Show", true, None::<&str>) {
         Ok(i) => i,
-        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
+    };
+    let settings_item = match MenuItem::with_id(app, "settings", "Settings", true, None::<&str>) {
+        Ok(i) => i,
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
+    };
+    let toggle_overlay_item = match MenuItem::with_id(
+        app,
+        "toggle-overlay-lock",
+        "Toggle Overlay Lock",
+        true,
+        None::<&str>,
+    ) {
+        Ok(i) => i,
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
     };
     let exit_item = match MenuItem::with_id(app, "exit", "Exit", true, None::<&str>) {
         Ok(i) => i,
-        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+        Err(e) => {
+            log::warn!("[tray] menu item error: {e}");
+            return;
+        }
     };
-    let menu = match Menu::with_items(app, &[&toggle_item, &skip_item, &reset_item, &sep, &show_item, &exit_item]) {
+    let menu = match Menu::with_items(
+        app,
+        &[
+            &toggle_item,
+            &skip_item,
+            &reset_item,
+            &sep,
+            &settings_item,
+            &toggle_overlay_item,
+            &sep,
+            &show_item,
+            &exit_item,
+        ],
+    ) {
         Ok(m) => m,
-        Err(e) => { log::warn!("[tray] menu error: {e}"); return; }
+        Err(e) => {
+            log::warn!("[tray] menu error: {e}");
+            return;
+        }
     };
 
     // Render the initial idle icon using the current state (respects countdown mode
@@ -300,37 +358,50 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
                 }
             }
         })
-        .on_menu_event(|app, event| {
-            match event.id().as_ref() {
-                "toggle" => {
-                    if let Some(timer) = app.try_state::<TimerController>() {
-                        timer.toggle();
-                    }
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "toggle" => {
+                if let Some(timer) = app.try_state::<TimerController>() {
+                    timer.toggle();
                 }
-                "skip" => {
-                    if let Some(timer) = app.try_state::<TimerController>() {
-                        timer.skip();
-                    }
-                }
-                "reset-round" => {
-                    if let Some(timer) = app.try_state::<TimerController>() {
-                        timer.restart_round();
-                    }
-                }
-                "show" => {
-                    log::info!("[tray] show");
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.unminimize();
-                        let _ = window.set_focus();
-                    }
-                }
-                "exit" => {
-                    log::info!("[tray] exit");
-                    app.exit(0);
-                }
-                _ => {}
             }
+            "skip" => {
+                if let Some(timer) = app.try_state::<TimerController>() {
+                    timer.skip();
+                }
+            }
+            "reset-round" => {
+                if let Some(timer) = app.try_state::<TimerController>() {
+                    timer.restart_round();
+                }
+            }
+            "settings" => {
+                log::info!("[tray] open settings");
+                let _ = app.emit("tray:open-settings", ());
+            }
+            "toggle-overlay-lock" => {
+                log::info!("[tray] toggle overlay lock");
+                if let (Some(db), Some(tray_state)) = (
+                    app.try_state::<DbState>(),
+                    app.try_state::<Arc<TrayState>>(),
+                ) {
+                    if let Err(e) = toggle_overlay_lock_state(&*db, &*tray_state, app.clone()) {
+                        log::warn!("[tray] failed to toggle overlay lock: {e}");
+                    }
+                }
+            }
+            "show" => {
+                log::info!("[tray] show");
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
+            }
+            "exit" => {
+                log::info!("[tray] exit");
+                app.exit(0);
+            }
+            _ => {}
         })
         .build(app);
 
@@ -396,7 +467,13 @@ pub fn update_menu_items(state: &Arc<TrayState>, is_running: bool, is_paused: bo
     let guard = state.menu_items.lock().unwrap();
     let Some(items) = guard.as_ref() else { return };
 
-    let toggle_label = if is_running { "Pause" } else if is_paused { "Resume" } else { "Start" };
+    let toggle_label = if is_running {
+        "Pause"
+    } else if is_paused {
+        "Resume"
+    } else {
+        "Start"
+    };
     let controls_enabled = is_running || is_paused;
 
     let _ = items.toggle.set_text(toggle_label);
@@ -437,7 +514,10 @@ pub fn render_tray_icon_rgba(
 ) -> Vec<u8> {
     let mut pixmap = Pixmap::new(SIZE, SIZE).expect("pixmap alloc");
 
-    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
 
     let stroke = Stroke {
         width: STROKE_WIDTH,
@@ -460,8 +540,8 @@ pub fn render_tray_icon_rgba(
     // Round-type color: used for both the progress arc and the pause bars.
     let round_color = match round_type {
         "short-break" => rgba_color(colors.short_round),
-        "long-break"  => rgba_color(colors.long_round),
-        _             => rgba_color(colors.focus_round),
+        "long-break" => rgba_color(colors.long_round),
+        _ => rgba_color(colors.focus_round),
     };
 
     // Progress arc from 12 o'clock, clockwise, in the round-type colour.
@@ -472,8 +552,8 @@ pub fn render_tray_icon_rgba(
     let sweep = effective.clamp(0.0, 1.0) * TAU;
     if sweep > 0.001 {
         let start = -FRAC_PI_2;
-        let end   = start + sweep;
-        let path  = build_arc_path(CENTER, CENTER, RADIUS, start, end);
+        let end = start + sweep;
+        let path = build_arc_path(CENTER, CENTER, RADIUS, start, end);
         pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
     }
 
@@ -489,8 +569,11 @@ pub fn render_tray_icon_rgba(
             if let Some(rect) = tiny_skia::Rect::from_xywh(x, bar_y, bar_w, bar_h) {
                 let p = PathBuilder::from_rect(rect);
                 pixmap.fill_path(
-                    &p, &paint, tiny_skia::FillRule::Winding,
-                    Transform::identity(), None,
+                    &p,
+                    &paint,
+                    tiny_skia::FillRule::Winding,
+                    Transform::identity(),
+                    None,
                 );
             }
         }
@@ -522,11 +605,17 @@ fn arc_segment(pb: &mut PathBuilder, cx: f32, cy: f32, r: f32, a0: f32, a1: f32,
     let alpha = ((a1 - a0) / 4.0).tan() * 4.0 / 3.0;
     let (s0, c0) = a0.sin_cos();
     let (s1, c1) = a1.sin_cos();
-    let x0 = cx + r * c0; let y0 = cy + r * s0;
-    let x3 = cx + r * c1; let y3 = cy + r * s1;
-    let x1 = x0 - alpha * r * s0; let y1 = y0 + alpha * r * c0;
-    let x2 = x3 + alpha * r * s1; let y2 = y3 - alpha * r * c1;
-    if first { pb.move_to(x0, y0); }
+    let x0 = cx + r * c0;
+    let y0 = cy + r * s0;
+    let x3 = cx + r * c1;
+    let y3 = cy + r * s1;
+    let x1 = x0 - alpha * r * s0;
+    let y1 = y0 + alpha * r * c0;
+    let x2 = x3 + alpha * r * s1;
+    let y2 = y3 - alpha * r * c1;
+    if first {
+        pb.move_to(x0, y0);
+    }
     pb.cubic_to(x1, y1, x2, y2, x3, y3);
 }
 
