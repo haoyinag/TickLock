@@ -116,7 +116,7 @@ jobs:
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pomotroid-linux-x64
+          name: dicda-linux-x64
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/deb/*.deb.asc
@@ -172,7 +172,7 @@ jobs:
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pomotroid-macos-universal
+          name: dicda-macos-universal
           path: |
             src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
@@ -231,11 +231,11 @@ jobs:
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pomotroid-windows-x64
+          name: dicda-windows-x64
           path: |
             src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/nsis/*-setup.exe.sig
-            src-tauri/target/release/pomotroid.exe
+            src-tauri/target/release/dicda.exe
           if-no-files-found: error
 
   # ── Create draft GitHub Release ────────────────────────────────────────────
@@ -254,25 +254,25 @@ jobs:
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
-          name: pomotroid-linux-x64
+          name: dicda-linux-x64
           path: dist/linux
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
-          name: pomotroid-macos-universal
+          name: dicda-macos-universal
           path: dist/macos
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          name: pomotroid-windows-x64
+          name: dicda-windows-x64
           path: dist/windows
 
       - name: Generate latest.json updater manifest
         run: |
           VERSION="${{ needs.changelog.outputs.version }}"
-          REPO="https://github.com/Splode/pomotroid"
+          REPO="https://github.com/Splode/dicda"
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           # Derive actual filenames from the downloaded artifacts rather than
@@ -312,11 +312,11 @@ jobs:
           VERSION="${{ needs.changelog.outputs.version }}"
           HASH="${{ needs.build-windows.outputs.installer_hash }}"
           jq --arg v "$VERSION" --arg h "$HASH" \
-            '.version = $v | .hash = $h | .url = "https://github.com/Splode/pomotroid/releases/download/v\($v)/Pomotroid_\($v)_x64-setup.exe#/dl.exe"' \
-            pomotroid.json > pomotroid.json.tmp && mv pomotroid.json.tmp pomotroid.json
+            '.version = $v | .hash = $h | .url = "https://github.com/Splode/dicda/releases/download/v\($v)/dicda_\($v)_x64-setup.exe#/dl.exe"' \
+            dicda.json > dicda.json.tmp && mv dicda.json.tmp dicda.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pomotroid.json latest.json
+          git add dicda.json latest.json
           git commit -m "chore: update Scoop manifest and latest.json to v${VERSION} [skip ci]"
           git push origin HEAD:main
 
@@ -336,4 +336,4 @@ jobs:
             dist/macos/**/*.dmg
             dist/macos/**/*.app.tar.gz
             dist/windows/**/*-setup.exe
-            dist/windows/**/pomotroid.exe
+            dist/windows/**/dicda.exe

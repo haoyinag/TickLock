@@ -35,6 +35,6 @@
 
 - [x] 6.1 Search codebase for any remaining references to `settings.theme` (the old single field) and update or remove them
 - [x] 6.2 Run `npm run check` — confirm zero type errors
-- [x] 6.3 Smoke test: new install defaults (auto mode, both pickers show Pomotroid active)
+- [x] 6.3 Smoke test: new install defaults (auto mode, both pickers show dicda active)
 - [x] 6.4 Smoke test: switching modes and pickers — correct theme applies or defers
 - [x] 6.5 Smoke test: live OS switch while in Auto mode — theme changes in both windows

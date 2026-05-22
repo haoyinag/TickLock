@@ -14,9 +14,9 @@
   - Full GPG key fingerprint
   - How to import the public key: `gpg --import public.asc`
   - Verification commands for each format:
-    - `gpg --verify pomotroid_*.deb.asc pomotroid_*.deb`
-    - `gpg --verify pomotroid_*.rpm.asc pomotroid_*.rpm`
-    - `gpg --verify pomotroid_*.AppImage.asc pomotroid_*.AppImage`
+    - `gpg --verify dicda_*.deb.asc dicda_*.deb`
+    - `gpg --verify dicda_*.rpm.asc dicda_*.rpm`
+    - `gpg --verify dicda_*.AppImage.asc dicda_*.AppImage`
   - Note that APT/RPM repo, Flatpak, Snap, and AUR distribution use separate repo-level signing mechanisms
   - Maintainer key generation and rotation instructions
 
@@ -32,5 +32,5 @@
 - [x] 4.1 Push a test tag and confirm the signing step completes without error
 - [x] 4.2 Download a signed artifact and its `.asc` from the test run; verify locally:
   - `gpg --import public.asc`
-  - `gpg --verify pomotroid_*.deb.asc pomotroid_*.deb`
+  - `gpg --verify dicda_*.deb.asc dicda_*.deb`
 - [x] 4.3 Confirm no private key material appears in CI logs

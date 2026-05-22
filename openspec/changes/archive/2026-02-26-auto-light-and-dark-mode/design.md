@@ -1,6 +1,6 @@
 ## Context
 
-Pomotroid uses a flat key/value SQLite settings table. The active theme is stored as a single `theme` string (theme name). The frontend loads this on startup, looks up the theme JSON by name, and applies its CSS custom properties to `:root`. Eighteen bundled themes exist; some are light (GitHub, Solarized Light, Rosé Pine Dawn), most are dark.
+dicda uses a flat key/value SQLite settings table. The active theme is stored as a single `theme` string (theme name). The frontend loads this on startup, looks up the theme JSON by name, and applies its CSS custom properties to `:root`. Eighteen bundled themes exist; some are light (GitHub, Solarized Light, Rosé Pine Dawn), most are dark.
 
 There is currently no OS color-scheme detection in the codebase. The `applyTheme()` store function applies a theme object's colors directly to the document root — it is the single apply point shared by both the main window and the settings window.
 
@@ -17,7 +17,7 @@ There is currently no OS color-scheme detection in the codebase. The `applyTheme
 **Non-Goals:**
 
 - Filtering or categorizing themes as "light" or "dark" in the UI or JSON
-- Adding new Pomotroid Light/Dark theme variants (separate future work)
+- Adding new dicda Light/Dark theme variants (separate future work)
 - Per-round-type theme overrides
 - Syncing the resolved theme name back to the DB on every OS change
 
@@ -57,7 +57,7 @@ There is currently no OS color-scheme detection in the codebase. The `applyTheme
 
 **Decision**: Add a one-time migration in `db/migrations.rs` that reads the current `theme` value and writes it to `theme_light` and `theme_dark` if those keys are absent.
 
-**Rationale**: The seed/defaults mechanism only inserts "Pomotroid" for missing keys. Existing users with custom themes (e.g. Nord) would silently revert to Pomotroid without a migration. The migration runs once during startup, before the settings are loaded.
+**Rationale**: The seed/defaults mechanism only inserts "dicda" for missing keys. Existing users with custom themes (e.g. Nord) would silently revert to dicda without a migration. The migration runs once during startup, before the settings are loaded.
 
 ## Risks / Trade-offs
 

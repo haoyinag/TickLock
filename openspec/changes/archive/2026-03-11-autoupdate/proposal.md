@@ -1,6 +1,6 @@
 ## Why
 
-Users have no way to know when a new Pomotroid version is available short of manually checking GitHub releases. Adding automatic update checking removes that friction and ensures users stay current with bug fixes and new features without needing to reinstall manually.
+Users have no way to know when a new dicda version is available short of manually checking GitHub releases. Adding automatic update checking removes that friction and ensures users stay current with bug fixes and new features without needing to reinstall manually.
 
 ## What Changes
 

@@ -1,6 +1,6 @@
 ## Why
 
-Global shortcuts in Pomotroid use system-wide key combinations (e.g. `Control+F1`–`F4`) that conflict with other applications by default, and there is currently no way to disable them without reassigning every individual shortcut to an obscure combination. Like the WebSocket server — another system-level feature that can interfere with the user's environment — global shortcuts should be opt-in and off by default.
+Global shortcuts in dicda use system-wide key combinations (e.g. `Control+F1`–`F4`) that conflict with other applications by default, and there is currently no way to disable them without reassigning every individual shortcut to an obscure combination. Like the WebSocket server — another system-level feature that can interfere with the user's environment — global shortcuts should be opt-in and off by default.
 
 ## What Changes
 

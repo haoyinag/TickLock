@@ -1,15 +1,15 @@
 {
-  "name": "pomotroid",
+  "name": "dicda",
   "version": "1.7.0",
-  "description": "A simple and visually-pleasing Pomodoro timer",
+  "description": "dicda, a simple and visually-pleasing Pomodoro timer",
   "author": {
     "email": "flyweight@pm.me",
     "name": "Christopher Murphy",
     "url": "https://github.com/splode"
   },
-  "homepage": "https://github.com/Splode/pomotroid",
+  "homepage": "https://github.com/Splode/dicda",
   "license": "MIT",
-  "repository": "github:splode/pomotroid",
+  "repository": "github:splode/dicda",
   "type": "module",
   "scripts": {
     "dev": "vite dev",

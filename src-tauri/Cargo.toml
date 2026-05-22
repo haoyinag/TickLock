@@ -1,7 +1,7 @@
 [package]
-name = "pomotroid"
+name = "dicda"
 version = "1.7.0"
-description = "A simple and visually-pleasing Pomodoro timer"
+description = "dicda, a simple and visually-pleasing Pomodoro timer"
 authors = ["Christopher Murphy <flyweight@pm.me>"]
 edition = "2021"
 
@@ -11,7 +11,7 @@ edition = "2021"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "pomotroid_lib"
+name = "dicda_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -47,3 +47,6 @@ tokio-tungstenite = "0.29"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 raw-window-handle = "0.6"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

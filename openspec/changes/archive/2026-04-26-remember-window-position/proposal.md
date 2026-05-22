@@ -1,6 +1,6 @@
 ## Why
 
-Pomotroid always opens at the same fixed position, ignoring where it was last closed. On multi-monitor setups it invariably reopens on the primary display, which is disruptive — especially when _Always on Top_ is enabled and the user habitually parks the window on a secondary screen.
+dicda always opens at the same fixed position, ignoring where it was last closed. On multi-monitor setups it invariably reopens on the primary display, which is disruptive — especially when _Always on Top_ is enabled and the user habitually parks the window on a secondary screen.
 
 ## What Changes
 

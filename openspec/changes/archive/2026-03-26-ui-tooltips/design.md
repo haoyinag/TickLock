@@ -1,6 +1,6 @@
 ## Context
 
-Pomotroid uses icon-only buttons in the timer window and terse toggle labels in settings. Many controls carry no discoverable description beyond an `aria-label`. A tooltip system provides just-in-time context without cluttering the UI. One specific driver is the GNOME AppIndicator note, currently shown as a static `.note` paragraph visible to all platforms; a tooltip on an info icon is a cleaner, Linux-only pattern.
+dicda uses icon-only buttons in the timer window and terse toggle labels in settings. Many controls carry no discoverable description beyond an `aria-label`. A tooltip system provides just-in-time context without cluttering the UI. One specific driver is the GNOME AppIndicator note, currently shown as a static `.note` paragraph visible to all platforms; a tooltip on an info icon is a cleaner, Linux-only pattern.
 
 ## Goals / Non-Goals
 
@@ -15,7 +15,7 @@ Pomotroid uses icon-only buttons in the timer window and terse toggle labels in 
 **Non-Goals**
 
 - Rich content (HTML, images) inside tooltips — plain text only.
-- Touch/mobile support — Pomotroid is desktop-only.
+- Touch/mobile support — dicda is desktop-only.
 - Third-party tooltip library — keep the dependency footprint flat.
 
 ## Decisions
@@ -38,13 +38,13 @@ Pomotroid uses icon-only buttons in the timer window and terse toggle labels in 
 
 **Decision**: The tooltip div is positioned above the trigger by default using `bottom: 100%`. On mount and on each show, a JS check measures the trigger's `getBoundingClientRect()` against `window.innerHeight` and adds a `placement="below"` attribute if insufficient space exists above.
 
-**Rationale**: Pure CSS cannot read viewport position. The flip logic is a few lines and avoids importing a full positioning library (Floating UI, Popper.js). Given Pomotroid's small, fixed-size window this is sufficient.
+**Rationale**: Pure CSS cannot read viewport position. The flip logic is a few lines and avoids importing a full positioning library (Floating UI, Popper.js). Given dicda's small, fixed-size window this is sufficient.
 
 ### 4. Single portal vs inline positioning
 
 **Decision**: Tooltip divs are rendered inline (sibling to the trigger), positioned with `position: absolute` inside a `position: relative` wrapper.
 
-**Rationale**: A portal (appending to `document.body`) would require teleporting DOM nodes and complicates scoped CSS. Since Pomotroid's window is compact and overflow is controlled, inline absolute positioning is reliable.
+**Rationale**: A portal (appending to `document.body`) would require teleporting DOM nodes and complicates scoped CSS. Since dicda's window is compact and overflow is controlled, inline absolute positioning is reliable.
 
 ### 5. Info icon component (`TooltipInfo.svelte`)
 

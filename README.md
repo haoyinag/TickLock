@@ -1,8 +1,8 @@
 <div align="center">
-  <img alt="Pomotroid" src=".github/images/pomotroid-title.png" width="800px">
+  <img alt="dicda" src=".github/images/dicda-title.png" width="800px">
 </div>
 <div align="center">
-  <img alt="Pomotroid in action" src=".github/images/pomotroid-screens.png" width="800px">
+  <img alt="dicda in action" src=".github/images/dicda-screens.png" width="800px">
 </div>
 
 <p align="center">Simple and visually-pleasing Pomodoro timer.</p>
@@ -20,7 +20,7 @@
 
 ## Overview
 
-Pomotroid is a simple and configurable Pomodoro timer. It aims to provide a visually-pleasing and reliable way to track productivity using the Pomodoro Technique.
+dicda is a simple and configurable Pomodoro timer. It aims to provide a visually-pleasing and reliable way to track productivity using the Pomodoro Technique.
 
 Built with [Tauri 2](https://tauri.app), [Rust](https://www.rust-lang.org), and [Svelte 5](https://svelte.dev).
 
@@ -35,7 +35,7 @@ Built with [Tauri 2](https://tauri.app), [Rust](https://www.rust-lang.org), and 
 - **Custom audio** — replace the built-in alert sounds with your own files
 - **Tick sounds** — optional ticking during work and break rounds, independently toggleable
 - **Dynamic tray icon** — progress arc updates in real time; reflects round type and pause state
-- **Minimise / close to tray** — keep Pomotroid running in the background
+- **Minimise / close to tray** — keep dicda running in the background
 - **Desktop notifications** — native OS alerts on round transitions
 - **Compact mode** — a minimal set of controls appears when the window is resized small
 - **Always on top** — optionally keep the timer above other windows
@@ -44,17 +44,17 @@ Built with [Tauri 2](https://tauri.app), [Rust](https://www.rust-lang.org), and 
 
 ## Statistics
 
-Pomotroid tracks every completed session and surfaces the data across three views: a daily summary with an hourly breakdown, a weekly bar chart with streak tracking, and an all-time 52-week heatmap.
+dicda tracks every completed session and surfaces the data across three views: a daily summary with an hourly breakdown, a weekly bar chart with streak tracking, and an all-time 52-week heatmap.
 
 <div align="center">
-  <img alt="Pomotroid statistics window" src=".github/images/pomotroid-stats.png" width="800px">
+  <img alt="dicda statistics window" src=".github/images/dicda-stats.png" width="800px">
 </div>
 
 ## Themes
 
-Pomotroid ships with 38 themes and supports fully custom themes with live hot-reload.
+dicda ships with 38 themes and supports fully custom themes with live hot-reload.
 
-![Screenshots of Pomotroid using various themes](.github/images/pomotroid-themes-preview.png)
+![Screenshots of dicda using various themes](.github/images/dicda-themes-preview.png)
 
 See [THEMES.md](./THEMES.md) for the full theme list and instructions on creating your own.
 
@@ -62,11 +62,11 @@ See [THEMES.md](./THEMES.md) for the full theme list and instructions on creatin
 
 ### Download
 
-Download the latest release from the [releases](https://github.com/Splode/pomotroid/releases) page.
+Download the latest release from the [releases](https://github.com/Splode/dicda/releases) page.
 
 Available for **Windows** (installer + standalone exe), **macOS** (universal DMG), and **Linux** (`.deb` + AppImage).
 
-> **Note:** Pomotroid is currently unsigned. Depending on your OS security settings you may see a warning on first launch — this is expected and can be safely dismissed.
+> **Note:** dicda is currently unsigned. Depending on your OS security settings you may see a warning on first launch — this is expected and can be safely dismissed.
 
 ### Linux notes
 
@@ -75,18 +75,18 @@ Available for **Windows** (installer + standalone exe), **macOS** (universal DMG
 ### Homebrew (macOS)
 
 ```sh
-brew install --cask pomotroid
+brew install --cask dicda
 ```
 
-> The Homebrew cask is maintained separately and may lag behind the latest release. Check the [releases](https://github.com/Splode/pomotroid/releases) page for the most current version.
+> The Homebrew cask is maintained separately and may lag behind the latest release. Check the [releases](https://github.com/Splode/dicda/releases) page for the most current version.
 
 ## Custom Themes
 
-Pomotroid supports user-created themes with automatic hot-reload — no restart required. See [THEMES.md](./THEMES.md) for directory paths, the full color reference, and a step-by-step guide.
+dicda supports user-created themes with automatic hot-reload — no restart required. See [THEMES.md](./THEMES.md) for directory paths, the full color reference, and a step-by-step guide.
 
 ## WebSocket API
 
-Pomotroid exposes an optional WebSocket server (disabled by default) for integration with external tools, stream overlays, and automation scripts.
+dicda exposes an optional WebSocket server (disabled by default) for integration with external tools, stream overlays, and automation scripts.
 
 **Enable it** in Settings → Advanced → WebSocket Server, then connect to `ws://127.0.0.1:<port>` (default port: 1314).
 

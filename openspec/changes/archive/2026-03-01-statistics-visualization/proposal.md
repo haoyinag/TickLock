@@ -1,6 +1,6 @@
 ## Why
 
-Pomotroid already captures session data (round type, duration, completion) to SQLite on every round, but there is no UI to surface it. Users have no way to see how productive they've been — today, this week, or historically. Adding a dedicated Statistics window gives that data a home and makes Pomotroid meaningfully more useful as a focus tool.
+dicda already captures session data (round type, duration, completion) to SQLite on every round, but there is no UI to surface it. Users have no way to see how productive they've been — today, this week, or historically. Adding a dedicated Statistics window gives that data a home and makes dicda meaningfully more useful as a focus tool.
 
 ## What Changes
 

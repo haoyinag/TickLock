@@ -24,13 +24,13 @@ Download both the package and its `.asc` signature file from the release page, t
 
 ```sh
 # Debian package
-gpg --verify pomotroid_<version>_amd64.deb.asc pomotroid_<version>_amd64.deb
+gpg --verify dicda_<version>_amd64.deb.asc dicda_<version>_amd64.deb
 
 # RPM package
-gpg --verify pomotroid-<version>-1.x86_64.rpm.asc pomotroid-<version>-1.x86_64.rpm
+gpg --verify dicda-<version>-1.x86_64.rpm.asc dicda-<version>-1.x86_64.rpm
 
 # AppImage
-gpg --verify pomotroid_<version>_amd64.AppImage.asc pomotroid_<version>_amd64.AppImage
+gpg --verify dicda_<version>_amd64.AppImage.asc dicda_<version>_amd64.AppImage
 ```
 
 A `Good signature` message confirms the file is genuine and unmodified.

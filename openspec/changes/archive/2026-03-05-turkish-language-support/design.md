@@ -1,6 +1,6 @@
 ## Context
 
-Pomotroid uses Paraglide JS v2 for localization. Locales are defined by:
+dicda uses Paraglide JS v2 for localization. Locales are defined by:
 
 1. A JSON message file at `src/messages/<locale>.json` with one key per translatable string.
 2. An entry in the `locales` array in `project.inlang/settings.json`.
@@ -28,7 +28,7 @@ The English file (`src/messages/en.json`) is the source of truth. It currently c
 
 ### Decision 1: Machine-translate the initial file, consistent with existing locales
 
-The existing non-English locales (Spanish, French, German, Japanese, Chinese, Portuguese) are machine-translated. Turkish will follow the same approach. The translations will be reviewed and refined by community contributors via pull requests — this is the established pattern for Pomotroid localization.
+The existing non-English locales (Spanish, French, German, Japanese, Chinese, Portuguese) are machine-translated. Turkish will follow the same approach. The translations will be reviewed and refined by community contributors via pull requests — this is the established pattern for dicda localization.
 
 ### Decision 2: Locale code `tr` (ISO 639-1)
 

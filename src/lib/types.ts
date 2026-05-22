@@ -61,8 +61,10 @@ export interface Settings {
   overlay_locked_clickthrough: boolean;
   overlay_min_size: number;
   overlay_max_size: number;
+  overlay_size: number;
   overlay_progress_color_start: string;
   overlay_progress_color_end: string;
+  overlay_hover_activation_ms: number;
 }
 
 /** Returned by `check_update` — describes an available update. */

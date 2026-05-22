@@ -128,6 +128,41 @@ const MIGRATION_10: &str = "
     INSERT INTO schema_version VALUES (10);
 ";
 
+/// Adds a configurable locked-hover activation delay for the floating ball.
+const MIGRATION_11: &str = "
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_hover_activation_ms', '3000');
+    INSERT INTO schema_version VALUES (11);
+";
+
+/// Adds an explicit current floating ball size and raises the minimum to 120px.
+const MIGRATION_12: &str = "
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_min_size', '120');
+    UPDATE settings SET value = '120'
+      WHERE key = 'overlay_min_size' AND CAST(value AS INTEGER) < 120;
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('overlay_max_size', '420');
+    UPDATE settings SET value = '120'
+      WHERE key = 'overlay_max_size' AND CAST(value AS INTEGER) < 120;
+    INSERT OR IGNORE INTO settings (key, value)
+      VALUES (
+        'overlay_size',
+        COALESCE(
+          (SELECT CAST(MAX(CAST(value AS INTEGER)) AS TEXT)
+             FROM settings
+            WHERE key IN ('window_width', 'window_height')),
+          '220'
+        )
+      );
+    UPDATE settings SET value = '120'
+      WHERE key = 'overlay_size' AND CAST(value AS INTEGER) < 120;
+    UPDATE settings
+       SET value = (SELECT value FROM settings WHERE key = 'overlay_max_size')
+     WHERE key = 'overlay_size'
+       AND CAST(value AS INTEGER) > (
+         SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'overlay_max_size'
+       );
+    INSERT INTO schema_version VALUES (12);
+";
+
 /// Apply any pending migrations. Each migration is wrapped in a transaction
 /// so a partial failure leaves the database unchanged.
 pub fn run(conn: &Connection) -> Result<()> {
@@ -193,6 +228,18 @@ pub fn run(conn: &Connection) -> Result<()> {
         log::info!("[db/migrations] MIGRATION_10 complete");
     }
 
+    if version < 11 {
+        log::info!("[db/migrations] applying MIGRATION_11: floating ball hover delay");
+        conn.execute_batch(&format!("BEGIN; {MIGRATION_11} COMMIT;"))?;
+        log::info!("[db/migrations] MIGRATION_11 complete");
+    }
+
+    if version < 12 {
+        log::info!("[db/migrations] applying MIGRATION_12: floating ball current size");
+        conn.execute_batch(&format!("BEGIN; {MIGRATION_12} COMMIT;"))?;
+        log::info!("[db/migrations] MIGRATION_12 complete");
+    }
+
     Ok(())
 }
 
@@ -228,7 +275,7 @@ mod tests {
         let v: i64 = conn
             .query_row("SELECT MAX(version) FROM schema_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(v, 10);
+        assert_eq!(v, 12);
     }
 
     #[test]

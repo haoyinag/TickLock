@@ -1,6 +1,6 @@
 ## Context
 
-Pomotroid has all user-visible strings hardcoded in English across 8+ Svelte components and in the Rust notification module. There is no existing i18n infrastructure. The app runs as a Tauri SPA (single-page application with `adapter-static`) in two windows — `main` and `settings` — which share the same JS bundle. The settings system already supports per-key persistence and live propagation via `settings:changed` events, which we can leverage for the language preference.
+dicda has all user-visible strings hardcoded in English across 8+ Svelte components and in the Rust notification module. There is no existing i18n infrastructure. The app runs as a Tauri SPA (single-page application with `adapter-static`) in two windows — `main` and `settings` — which share the same JS bundle. The settings system already supports per-key persistence and live propagation via `settings:changed` events, which we can leverage for the language preference.
 
 ## Goals / Non-Goals
 

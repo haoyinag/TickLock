@@ -1,6 +1,6 @@
 ## Why
 
-Pomotroid currently has all user-visible strings hardcoded in English, limiting its reach to non-English-speaking users. Adding i18n support broadens the audience and makes the app accessible to users whose system locale is not English, with a clear path for community contributions of additional translations.
+dicda currently has all user-visible strings hardcoded in English, limiting its reach to non-English-speaking users. Adding i18n support broadens the audience and makes the app accessible to users whose system locale is not English, with a clear path for community contributions of additional translations.
 
 ## What Changes
 

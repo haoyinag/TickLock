@@ -1,6 +1,6 @@
 ## Why
 
-Pomotroid's theme system is a manual, single-choice picker — users must remember to switch themes when moving between light and dark environments. Adding OS-aware automatic theme switching reduces friction and aligns the app with modern desktop expectations.
+dicda's theme system is a manual, single-choice picker — users must remember to switch themes when moving between light and dark environments. Adding OS-aware automatic theme switching reduces friction and aligns the app with modern desktop expectations.
 
 ## What Changes
 

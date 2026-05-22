@@ -28,6 +28,7 @@ use tauri::{
 use crate::commands::toggle_overlay_lock_state;
 use crate::db::DbState;
 use crate::timer::TimerController;
+use crate::ExitState;
 use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 // ---------------------------------------------------------------------------
@@ -46,7 +47,7 @@ pub struct TrayColors {
 
 impl Default for TrayColors {
     fn default() -> Self {
-        // Pomotroid theme defaults (matches pomotroid.json bundled theme).
+        // dicda theme defaults (matches dicda.json bundled theme).
         Self {
             background: [47, 56, 75, 255],    // #2F384B
             focus_round: [226, 93, 96, 255],  // #E25D60
@@ -328,7 +329,7 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
 
     let tray = TrayIconBuilder::new()
         .icon(image)
-        .tooltip("Pomotroid")
+        .tooltip("dicda")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray_icon, event| {
@@ -399,6 +400,9 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
             }
             "exit" => {
                 log::info!("[tray] exit");
+                if let Some(exit_state) = app.try_state::<ExitState>() {
+                    exit_state.request();
+                }
                 app.exit(0);
             }
             _ => {}

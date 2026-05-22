@@ -39,7 +39,7 @@
 ## 8. CI: generate and commit `latest.json`
 
 - [x] 8.1 Add a CI step in the release workflow (`.github/workflows/`) that generates `latest.json` from the signed build artifacts using the Tauri CLI or a manifest-generation script, including platform URLs and Ed25519 signatures
-- [x] 8.2 Add a CI step that commits `latest.json` to `main` (same pattern as the Scoop manifest `pomotroid.json` commit step)
+- [x] 8.2 Add a CI step that commits `latest.json` to `main` (same pattern as the Scoop manifest `dicda.json` commit step)
 
 ## 9. Verify
 

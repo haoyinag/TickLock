@@ -31,7 +31,7 @@
 
   .time {
     font-family: 'Mona Sans Mono', monospace;
-    font-size: 2.8rem;
+    font-size: 2.45rem;
     font-weight: 520;
     font-stretch: 85%;
     letter-spacing: 0;

@@ -1,6 +1,6 @@
 ## Why
 
-When users encounter issues running Pomotroid, there is no persistent diagnostic record — all runtime errors go to stderr and are lost in production. A structured log file makes it possible for users to capture and submit diagnostics when filing bug reports.
+When users encounter issues running dicda, there is no persistent diagnostic record — all runtime errors go to stderr and are lost in production. A structured log file makes it possible for users to capture and submit diagnostics when filing bug reports.
 
 ## What Changes
 

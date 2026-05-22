@@ -1,9 +1,6 @@
 <script lang="ts">
-  // SVG arc dial showing timer progress.
-  // Replicates the original Pomotroid dial: fills from 0% to 100% as time elapses.
-  // Uses Svelte tweened store for smooth animation.
-  import { tweened } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
+  import { tweened } from 'svelte/motion';
   import type { TimerState } from '$lib/types';
 
   interface Props {
@@ -15,27 +12,78 @@
 
   let { snap, countdown = false, colorStart = '#ff7a45', colorEnd = '#ff2d75' }: Props = $props();
 
-  // SVG constants (matching original Pomotroid geometry)
-  const CIRCUMFERENCE = 691.15; // 2π × 110 ≈ 691.15
+  const CENTER = 115;
+  const RADIUS = 85;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+  const SEGMENT_COUNT = 96;
 
-  // Tweened offset: starts at full circumference (invisible), animates toward 0 (full arc).
   const dashOffset = tweened(CIRCUMFERENCE, { duration: 800, easing: cubicOut });
 
-  // Round-type → CSS custom property for stroke color.
-  // Track previous round to detect round changes and snap the animation.
-  // Not reactive — only used for comparison inside $effect.
   let prevRound = $state<string>('');
+  const visibleProgress = $derived(Math.max(0, Math.min(1, 1 - $dashOffset / CIRCUMFERENCE)));
+  const segments = $derived(buildSegments(visibleProgress, colorStart, colorEnd));
+
+  function parseHexColor(hex: string): [number, number, number] | null {
+    const raw = hex.trim().replace(/^#/, '');
+    const normalized =
+      raw.length === 3
+        ? raw
+            .split('')
+            .map((c) => c + c)
+            .join('')
+        : raw;
+    if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+    return [
+      Number.parseInt(normalized.slice(0, 2), 16),
+      Number.parseInt(normalized.slice(2, 4), 16),
+      Number.parseInt(normalized.slice(4, 6), 16),
+    ];
+  }
+
+  function mixColor(start: string, end: string, t: number) {
+    const a = parseHexColor(start) ?? [255, 122, 69];
+    const b = parseHexColor(end) ?? [255, 45, 117];
+    const mixed = a.map((channel, i) => Math.round(channel + (b[i] - channel) * t));
+    return `rgb(${mixed[0]} ${mixed[1]} ${mixed[2]})`;
+  }
+
+  function pointOnCircle(ratio: number) {
+    const angle = -Math.PI / 2 + ratio * Math.PI * 2;
+    return {
+      x: CENTER + RADIUS * Math.cos(angle),
+      y: CENTER + RADIUS * Math.sin(angle),
+    };
+  }
+
+  function arcPath(startRatio: number, endRatio: number) {
+    const start = pointOnCircle(startRatio);
+    const end = pointOnCircle(endRatio);
+    const largeArc = endRatio - startRatio > 0.5 ? 1 : 0;
+    return `M ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${RADIUS} ${RADIUS} 0 ${largeArc} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)}`;
+  }
+
+  function buildSegments(progress: number, start: string, end: string) {
+    if (progress <= 0) return [];
+
+    const total = Math.ceil(progress * SEGMENT_COUNT);
+    return Array.from({ length: total }, (_, i) => {
+      const startRatio = i / SEGMENT_COUNT;
+      const endRatio = Math.min((i + 1) / SEGMENT_COUNT, progress);
+      const localT = progress <= 0 ? 0 : (startRatio + endRatio) / 2 / progress;
+      return {
+        key: `${i}-${endRatio.toFixed(3)}`,
+        d: arcPath(startRatio, endRatio),
+        color: mixColor(start, end, Math.max(0, Math.min(1, localT))),
+      };
+    }).filter((segment) => segment.d.length > 0);
+  }
 
   $effect(() => {
     const rt = snap.round_type;
     const progress = snap.total_secs > 0 ? snap.elapsed_secs / snap.total_secs : 0;
-
-    // Elapsed mode: arc grows from empty → full (offset counts down to 0).
-    // Countdown mode: arc shrinks from full → empty (offset counts up to CIRCUMFERENCE).
     const target = countdown ? CIRCUMFERENCE * progress : CIRCUMFERENCE * (1 - progress);
     const startOffset = countdown ? 0 : CIRCUMFERENCE;
 
-    // On round change: snap to start position immediately.
     if (rt !== prevRound) {
       dashOffset.set(startOffset, { duration: 0 });
       prevRound = rt;
@@ -45,32 +93,26 @@
   });
 </script>
 
-<svg class="dial" viewBox="0 0 230 230" aria-hidden="true">
-  <defs>
-    <linearGradient id="progress-gradient" x1="28" y1="28" x2="202" y2="202">
-      <stop offset="0%" stop-color={colorStart} />
-      <stop offset="100%" stop-color={colorEnd} />
-    </linearGradient>
-  </defs>
-  <!-- Background track -->
-  <path
+<svg class="dial" viewBox="0 0 230 230" aria-hidden="true" style:--progress-glow={colorStart}>
+  <circle
     class="track"
-    d="M115,5c60.8,0,110,49.2,110,110s-49.2,110-110,110S5,175.8,5,115S54.2,5,115,5"
+    cx={CENTER}
+    cy={CENTER}
+    r={RADIUS}
     fill="none"
     stroke="currentColor"
     stroke-width="2"
   />
-  <!-- Progress arc -->
-  <path
-    class="progress"
-    d="M115,5c60.8,0,110,49.2,110,110s-49.2,110-110,110S5,175.8,5,115S54.2,5,115,5"
-    fill="none"
-    stroke="url(#progress-gradient)"
-    stroke-width="10"
-    stroke-linecap="round"
-    stroke-dasharray={CIRCUMFERENCE}
-    stroke-dashoffset={$dashOffset}
-  />
+  {#each segments as segment (segment.key)}
+    <path
+      class="progress-segment"
+      d={segment.d}
+      fill="none"
+      stroke={segment.color}
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+  {/each}
 </svg>
 
 <style>
@@ -83,7 +125,7 @@
       drop-shadow(0 2px 10px color-mix(in oklch, black 42%, transparent));
   }
 
-  .progress {
-    filter: drop-shadow(0 0 7px currentColor);
+  .progress-segment {
+    filter: drop-shadow(0 0 7px var(--progress-glow));
   }
 </style>

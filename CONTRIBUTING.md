@@ -1,4 +1,4 @@
-# Contributing to Pomotroid
+# Contributing to dicda
 
 Thank you for taking the time to contribute. Below you'll find everything needed to get set up, make changes, and cut a release.
 
@@ -22,7 +22,7 @@ Be kind and respectful to the members of the community. Take time to educate oth
 ## Filing a Bug or Feature
 
 1. Check existing issues before opening a new one.
-2. **Bug reports** — include steps to reproduce, Pomotroid version, OS, and what you expected vs. what happened.
+2. **Bug reports** — include steps to reproduce, dicda version, OS, and what you expected vs. what happened.
 3. **Feature requests** — open an issue with a clear title and description of the feature and why it would be useful.
 
 ---
@@ -51,8 +51,8 @@ sudo apt-get install -y \
 ### Install and run
 
 ```bash
-git clone https://github.com/Splode/pomotroid
-cd pomotroid
+git clone https://github.com/Splode/dicda
+cd dicda
 npm install
 npm run tauri dev
 ```
@@ -92,14 +92,14 @@ python3 scripts/seed-db.py
 python3 scripts/seed-db.py --days 365 --clear
 ```
 
-The database must exist before seeding — launch Pomotroid at least once to create it. The script resolves the platform-specific app-data path automatically; pass `--db PATH` to override.
+The database must exist before seeding — launch dicda at least once to create it. The script resolves the platform-specific app-data path automatically; pass `--db PATH` to override.
 
 ---
 
 ## Project Structure
 
 ```
-pomotroid/
+dicda/
 ├── src/                    # SvelteKit frontend (Svelte 5 runes)
 │   ├── routes/             # Page components (main timer, settings, stats)
 │   └── lib/
@@ -206,11 +206,11 @@ Pushing the tag triggers the [release workflow](.github/workflows/release.yml), 
 
 - Builds Linux (`.deb`, `.AppImage`), macOS (universal `.dmg`), and Windows (`.exe` installer) in parallel
 - Creates a **draft** GitHub Release with all artifacts attached and the changelog section as the release body
-- Commits `latest.json` (auto-updater manifest) and `pomotroid.json` (Scoop manifest) to `main`
+- Commits `latest.json` (auto-updater manifest) and `dicda.json` (Scoop manifest) to `main`
 
 **4. Publish the draft**
 
-Go to the [Releases page](https://github.com/Splode/pomotroid/releases), review the draft, and click **Publish release**.
+Go to the [Releases page](https://github.com/Splode/dicda/releases), review the draft, and click **Publish release**.
 
 **5. Open the changelog for the next release**
 
@@ -225,7 +225,7 @@ This adds a fresh `[Unreleased]` block at the top of `CHANGELOG.md` and commits 
 
 ### Version numbering
 
-Pomotroid follows [Semantic Versioning](https://semver.org):
+dicda follows [Semantic Versioning](https://semver.org):
 
 | Change                             | Version bump |
 | ---------------------------------- | ------------ |

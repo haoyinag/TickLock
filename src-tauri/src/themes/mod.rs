@@ -52,8 +52,8 @@ const BUNDLED_JSON: &[&str] = &[
     include_str!("../../../static/themes/nord.json"),
     include_str!("../../../static/themes/one-dark.json"),
     include_str!("../../../static/themes/panda.json"),
-    include_str!("../../../static/themes/pomotroid.json"),
-    include_str!("../../../static/themes/pomotroid-light.json"),
+    include_str!("../../../static/themes/dicda.json"),
+    include_str!("../../../static/themes/dicda-light.json"),
     include_str!("../../../static/themes/popping-and-locking.json"),
     include_str!("../../../static/themes/rose-pine.json"),
     include_str!("../../../static/themes/rose-pine-dawn.json"),
@@ -208,11 +208,11 @@ mod tests {
     }
 
     #[test]
-    fn pomotroid_theme_is_bundled() {
+    fn dicda_theme_is_bundled() {
         let themes = load_bundled();
         assert!(
-            themes.iter().any(|t| t.name == "Pomotroid"),
-            "Pomotroid theme must be bundled"
+            themes.iter().any(|t| t.name == "dicda"),
+            "dicda theme must be bundled"
         );
     }
 

@@ -1,6 +1,6 @@
 ## Why
 
-Many of Pomotroid's controls are icon-only or use terse labels, leaving their exact behaviour or platform-specific caveats undiscoverable without reading documentation. Tooltips provide just-in-time context directly in the UI — reducing friction for new users and surfacing important notes (such as the GNOME AppIndicator requirement) at the exact moment they are relevant.
+Many of dicda's controls are icon-only or use terse labels, leaving their exact behaviour or platform-specific caveats undiscoverable without reading documentation. Tooltips provide just-in-time context directly in the UI — reducing friction for new users and surfacing important notes (such as the GNOME AppIndicator requirement) at the exact moment they are relevant.
 
 ## What Changes
 

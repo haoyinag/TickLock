@@ -51,5 +51,5 @@ When Accessibility access has not yet been granted, the system SHALL re-check tr
 #### Scenario: Notice dismisses after access granted
 
 - **WHEN** the user grants Accessibility access in System Settings
-- **AND** returns focus to the Pomotroid settings window
+- **AND** returns focus to the dicda settings window
 - **THEN** the notice SHALL disappear without requiring a restart or manual refresh

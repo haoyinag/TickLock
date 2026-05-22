@@ -27,9 +27,9 @@ GPG is available on GitHub Actions' Ubuntu runners without any `apt-get install`
 `gpg --detach-sign --armor <file>` produces a `<file>.asc` sidecar that works identically for `.deb`, `.rpm`, and `.AppImage`. One tool, one GPG key, one verification command across all formats:
 
 ```
-gpg --verify pomotroid.deb.asc pomotroid.deb
-gpg --verify pomotroid.rpm.asc pomotroid.rpm
-gpg --verify pomotroid.AppImage.asc pomotroid.AppImage
+gpg --verify dicda.deb.asc dicda.deb
+gpg --verify dicda.rpm.asc dicda.rpm
+gpg --verify dicda.AppImage.asc dicda.AppImage
 ```
 
 **Alternative considered:** Tauri-native AppImage signing (`SIGN=1`) + format-native for the others (`dpkg-sig`, `rpmsign`). Rejected — three different tools, three different verification UXes, and higher CI complexity with no meaningful benefit for GitHub release users.

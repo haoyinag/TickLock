@@ -16,7 +16,7 @@
 
 ## 3. Logging infrastructure — Rust
 
-- [x] 3.1 Register `tauri_plugin_log` as the first plugin in the builder chain in `src-tauri/src/lib.rs`, configured with: file target (`LogDir`, filename `"pomotroid"`), `max_file_size(5 * 1024 * 1024)`, `RotationStrategy::KeepOne`, `LevelFilter::Debug` ceiling
+- [x] 3.1 Register `tauri_plugin_log` as the first plugin in the builder chain in `src-tauri/src/lib.rs`, configured with: file target (`LogDir`, filename `"dicda"`), `max_file_size(5 * 1024 * 1024)`, `RotationStrategy::KeepOne`, `LevelFilter::Debug` ceiling
 - [x] 3.2 In `setup()`, after loading `initial_settings`, call `log::set_max_level(LevelFilter::Debug)` if `verbose_logging` is true, else `log::set_max_level(LevelFilter::Info)`
 - [x] 3.3 In `setup()`, register a panic hook: `std::panic::set_hook(Box::new(|info| { log::error!("PANIC: {info}"); }))`
 - [x] 3.4 Log startup metadata in `setup()`: app version (`env!("CARGO_PKG_VERSION")`), resolved `app_data_dir` path, and DB open success at INFO level

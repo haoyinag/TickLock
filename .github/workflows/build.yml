@@ -68,7 +68,7 @@ jobs:
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pomotroid-linux-x64
+          name: dicda-linux-x64
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
@@ -115,7 +115,7 @@ jobs:
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pomotroid-macos-universal
+          name: dicda-macos-universal
           path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
@@ -157,8 +157,8 @@ jobs:
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pomotroid-windows-x64
+          name: dicda-windows-x64
           path: |
             src-tauri/target/release/bundle/nsis/*-setup.exe
-            src-tauri/target/release/pomotroid.exe
+            src-tauri/target/release/dicda.exe
           if-no-files-found: error

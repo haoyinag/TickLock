@@ -1,10 +1,10 @@
-# Pomotroid Themes
+# dicda Themes
 
-Pomotroid ships with 38 built-in themes and supports an unlimited number of user-created custom themes. Custom themes are hot-reloaded — no restart required.
+dicda ships with 38 built-in themes and supports an unlimited number of user-created custom themes. Custom themes are hot-reloaded — no restart required.
 
 ## Built-in themes
 
-Andromeda, Ayu (Mirage), Catppuccin Frappé, Catppuccin Latte, Catppuccin Macchiato, Catppuccin Mocha, City Lights, Cobalt2, Crimson White, Darcula, Dracula, D.Va, Everforest, GitHub, GitHub Dark, Graphite, Gruvbox, Gruvbox Light, Horizon, Kanagawa, Material Palenight, Monokai, Monokai Pro, Night Owl, Nord, One Dark Pro, Panda, Pomotroid (default dark), Pomotroid Light (default light), Popping and Locking, Rosé Pine, Rosé Pine Dawn, Rosé Pine Moon, Solarized Dark, Solarized Light, Spandex, Synthwave, Tokyo Night
+Andromeda, Ayu (Mirage), Catppuccin Frappé, Catppuccin Latte, Catppuccin Macchiato, Catppuccin Mocha, City Lights, Cobalt2, Crimson White, Darcula, Dracula, D.Va, Everforest, GitHub, GitHub Dark, Graphite, Gruvbox, Gruvbox Light, Horizon, Kanagawa, Material Palenight, Monokai, Monokai Pro, Night Owl, Nord, One Dark Pro, Panda, dicda (default dark), dicda Light (default light), Popping and Locking, Rosé Pine, Rosé Pine Dawn, Rosé Pine Moon, Solarized Dark, Solarized Light, Spandex, Synthwave, Tokyo Night
 
 ## Creating a custom theme
 
@@ -17,19 +17,19 @@ The directory is not created automatically. Make it once:
 **Linux**
 
 ```sh
-mkdir -p ~/.local/share/com.splode.pomotroid/themes
+mkdir -p ~/.local/share/com.splode.dicda/themes
 ```
 
 **macOS**
 
 ```sh
-mkdir -p ~/Library/Application\ Support/com.splode.pomotroid/themes
+mkdir -p ~/Library/Application\ Support/com.splode.dicda/themes
 ```
 
 **Windows** (PowerShell)
 
 ```powershell
-New-Item -ItemType Directory -Force "$env:APPDATA\com.splode.pomotroid\themes"
+New-Item -ItemType Directory -Force "$env:APPDATA\com.splode.dicda\themes"
 ```
 
 ### 2. Create a theme file
@@ -77,7 +77,7 @@ All values must be CSS hex colors (`#rrggbb` or `#rrggbbaa`).
 
 ## Hot-reload
 
-Pomotroid watches the themes directory while running. Saving a file — including edits to an existing theme — updates the Appearance picker within half a second. There is no need to reopen settings or restart the app.
+dicda watches the themes directory while running. Saving a file — including edits to an existing theme — updates the Appearance picker within half a second. There is no need to reopen settings or restart the app.
 
 ## Overriding a built-in theme
 

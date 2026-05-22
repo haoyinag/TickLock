@@ -31,7 +31,7 @@ pub fn show(app: &AppHandle, title: &str, body: &str) {
 pub fn dispatch(_app: &AppHandle, title: &str, body: &str) {
     let _ = std::process::Command::new("notify-send")
         .args([
-            "--app-name=Pomotroid",
+            "--app-name=dicda",
             "--urgency=normal",
             "--expire-time=5000",
             title,

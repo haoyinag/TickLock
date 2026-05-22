@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  ## Project: Pomotroid
+  ## Project: dicda
   A Pomodoro timer desktop application. Full rewrite from Electron + Vue 2 → Tauri 2.x + Rust + Svelte 5 + SQLite.
 
   ## Tech Stack

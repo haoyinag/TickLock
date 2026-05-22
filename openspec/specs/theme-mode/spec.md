@@ -26,7 +26,7 @@ The system SHALL provide three theme modes — Auto, Light, and Dark — that co
 
 ### Requirement: Independent light and dark theme pickers
 
-The system SHALL maintain two independent theme selections: `theme_light` and `theme_dark`. Both pickers SHALL display all available themes and SHALL be accessible via the collapsible theme picker UI. Defaults SHALL be `"Pomotroid"` for both.
+The system SHALL maintain two independent theme selections: `theme_light` and `theme_dark`. Both pickers SHALL display all available themes and SHALL be accessible via the collapsible theme picker UI. Defaults SHALL be `"dicda"` for both.
 
 #### Scenario: Light theme selection when Light mode active
 
@@ -108,4 +108,4 @@ On first launch after the update, the system SHALL migrate existing single-theme
 #### Scenario: Brand new install
 
 - **WHEN** no settings exist in the DB
-- **THEN** `theme_mode = "auto"`, `theme_light = "Pomotroid"`, `theme_dark = "Pomotroid"` are seeded as defaults
+- **THEN** `theme_mode = "auto"`, `theme_light = "dicda"`, `theme_dark = "dicda"` are seeded as defaults

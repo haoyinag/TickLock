@@ -2,8 +2,18 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import Timer from '$lib/components/Timer.svelte';
-  import { getSettings, getThemes, onSettingsChanged, onThemesChanged } from '$lib/ipc';
+  import {
+    getSettings,
+    getThemes,
+    onSettingsChanged,
+    onThemesChanged,
+    setWindowVisibility,
+    timerRestartRound,
+    timerSkip,
+    timerToggle,
+  } from '$lib/ipc';
   import { settings } from '$lib/stores/settings';
+  import { timerState } from '$lib/stores/timer';
   import { applyTheme } from '$lib/stores/theme';
   import { resolveThemeName } from '$lib/utils/theme';
   import { isMac } from '$lib/utils/platform';
@@ -17,17 +27,54 @@
   let preMuteVolume = $state(0.5);
   let isFullscreen = $state(false);
   let uiScale = $state(0.78);
+  let shellInset = $state(6);
+  let hoverReady = $state(false);
   const unlocked = $derived(!$settings.overlay_locked_clickthrough);
+  const showHoverControls = $derived($settings.overlay_locked_clickthrough && hoverReady);
+  const canDrag = $derived(unlocked || showHoverControls);
+  const timerSnap = $derived($timerState);
 
   $effect(() => {
     function update() {
-      const available = Math.max(72, Math.min(window.innerWidth, window.innerHeight) - 14);
-      uiScale = Math.max(0.28, Math.min(available / 252, 1.25));
+      const shortest = Math.min(window.innerWidth, window.innerHeight);
+      shellInset = Math.max(2, Math.min(shortest * 0.04, 6));
+      const available = Math.max(96, shortest - shellInset * 2 - 10);
+      uiScale = Math.max(0.42, Math.min(available / 230, 1.25));
     }
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   });
+
+  async function openSettingsWindow() {
+    try {
+      const existing = await WebviewWindow.getByLabel('settings');
+      if (existing) {
+        await existing.show();
+        await existing.setFocus();
+        return;
+      }
+      const win = new WebviewWindow('settings', {
+        url: '/settings',
+        title: 'dicda - Settings',
+        width: 720,
+        height: 520,
+        decorations: isMac,
+        titleBarStyle: isMac ? ('Overlay' as any) : undefined,
+        hiddenTitle: isMac ? true : undefined,
+        resizable: false,
+        visible: false,
+      });
+      await win.show();
+      await win.setFocus();
+    } catch (err) {
+      await logError(`[main] failed to open settings: ${err}`);
+    }
+  }
+
+  async function hideFloatingBall() {
+    await setWindowVisibility(false);
+  }
 
   onMount(() => {
     const cleanups: UnlistenFn[] = [];
@@ -111,31 +158,14 @@
       );
 
       const trayListener = await listen('tray:open-settings', async () => {
-        try {
-          const existing = await WebviewWindow.getByLabel('settings');
-          if (existing) {
-            await existing.show();
-            await existing.setFocus();
-            return;
-          }
-          const win = new WebviewWindow('settings', {
-            url: '/settings',
-            title: 'Pomotroid - Settings',
-            width: 720,
-            height: 520,
-            decorations: isMac,
-            titleBarStyle: isMac ? ('Overlay' as any) : undefined,
-            hiddenTitle: isMac ? true : undefined,
-            resizable: false,
-            visible: false,
-          });
-          await win.show();
-          await win.setFocus();
-        } catch (err) {
-          await logError(`[main] failed to open settings from tray: ${err}`);
-        }
+        await openSettingsWindow();
       });
       cleanups.push(trayListener);
+
+      const hoverListener = await listen<boolean>('overlay:hover-ready', (event) => {
+        hoverReady = event.payload;
+      });
+      cleanups.push(hoverListener);
     })();
 
     return () => {
@@ -144,7 +174,7 @@
   });
 
   async function startDrag() {
-    if (!unlocked) return;
+    if (!canDrag) return;
     await getCurrentWebviewWindow().startDragging();
   }
 
@@ -160,12 +190,15 @@
   class:locked={$settings.overlay_locked_clickthrough}
   class:unlocked
   style:--shell-opacity={$settings.window_opacity}
+  style:--shell-inset={`${shellInset}px`}
   role="application"
   aria-label="Pomodoro floating timer"
 >
   <div class="shell-layer" data-tauri-drag-region></div>
-  {#if unlocked}
+  {#if canDrag}
     <button class="drag-zone" aria-label="Drag floating timer" onmousedown={startDrag}></button>
+  {/if}
+  {#if unlocked}
     {#if !isMac}
       <button
         class="resize-handle resize-n"
@@ -212,6 +245,71 @@
   <main>
     <Timer isCompact={true} {uiScale} />
   </main>
+
+  {#if showHoverControls}
+    <div class="hover-controls" aria-label="Floating timer controls">
+      <button
+        class="hover-btn hover-close"
+        type="button"
+        aria-label="Hide floating timer"
+        onclick={hideFloatingBall}
+      >
+        X
+      </button>
+      <button
+        class="hover-btn hover-reset"
+        type="button"
+        aria-label="Restart round"
+        onclick={timerRestartRound}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+          <polygon points="15,1 6,8 15,15" fill="currentColor" />
+          <rect x="1" y="1" width="3" height="14" rx="1" fill="currentColor" />
+        </svg>
+      </button>
+      <button
+        class="hover-btn hover-play"
+        type="button"
+        aria-label={timerSnap.is_running ? 'Pause' : 'Play'}
+        onclick={timerToggle}
+      >
+        {#if timerSnap.is_running}
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="6" y="4" width="4" height="16" rx="1.2" fill="currentColor" />
+            <rect x="14" y="4" width="4" height="16" rx="1.2" fill="currentColor" />
+          </svg>
+        {:else}
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+            <polygon points="6,3 21,12 6,21" fill="currentColor" />
+          </svg>
+        {/if}
+      </button>
+      <button
+        class="hover-btn hover-skip"
+        type="button"
+        aria-label="Skip round"
+        onclick={timerSkip}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+          <polygon points="1,1 10,8 1,15" fill="currentColor" />
+          <rect x="12" y="1" width="3" height="14" rx="1" fill="currentColor" />
+        </svg>
+      </button>
+      <button
+        class="hover-btn hover-settings"
+        type="button"
+        aria-label="Open settings"
+        onclick={openSettingsWindow}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M19.4 13.4c.1-.5.1-.9.1-1.4s0-.9-.1-1.4l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.4-1.4L14.3 2h-4.1l-.4 3.2c-.9.3-1.7.8-2.4 1.4l-2.4-1-2 3.5 2 1.5a8.4 8.4 0 0 0 0 2.8l-2 1.5 2 3.5 2.4-1c.7.6 1.5 1.1 2.4 1.4l.4 3.2h4.1l.4-3.2c.9-.3 1.7-.8 2.4-1.4l2.4 1 2-3.5-2.1-1.5ZM12.3 15.5A3.5 3.5 0 1 1 12.3 8a3.5 3.5 0 0 1 0 7.5Z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -226,14 +324,15 @@
     height: 100%;
     display: grid;
     place-items: center;
-    overflow: hidden;
+    /* overflow: hidden; */
     border-radius: 50%;
     animation: ball-scale-in 0.28s var(--transition-slow) both;
+    padding: 12px;
   }
 
   .shell-layer {
     position: absolute;
-    inset: 6px;
+    inset: var(--shell-inset, 6px);
     border-radius: 50%;
     background:
       radial-gradient(
@@ -273,6 +372,99 @@
     display: grid;
     place-items: center;
     overflow: hidden;
+  }
+
+  .hover-controls {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    animation: controls-fade-in 0.14s ease-out both;
+  }
+
+  .hover-btn {
+    position: absolute;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid color-mix(in oklch, var(--color-foreground) 28%, transparent);
+    border-radius: 50%;
+    color: var(--color-foreground);
+    background: color-mix(in oklch, var(--color-background) 56%, transparent);
+    box-shadow: 0 0 10px color-mix(in oklch, black 22%, transparent);
+    cursor: pointer;
+    pointer-events: auto;
+    transition:
+      background var(--transition-default),
+      color var(--transition-default),
+      transform var(--transition-default);
+  }
+
+  .hover-btn:hover {
+    color: var(--color-accent);
+    background: color-mix(in oklch, var(--color-background) 78%, transparent);
+    transform: scale(1.08);
+  }
+
+  .hover-play {
+    top: 50%;
+    left: 50%;
+    width: 34px;
+    height: 34px;
+    transform: translate(-50%, -50%);
+  }
+
+  .hover-play:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+
+  .hover-reset {
+    top: 50%;
+    left: 19%;
+    transform: translateY(-50%);
+  }
+
+  .hover-reset:hover {
+    transform: translateY(-50%) scale(1.08);
+  }
+
+  .hover-skip {
+    top: 50%;
+    right: 19%;
+    transform: translateY(-50%);
+  }
+
+  .hover-skip:hover {
+    transform: translateY(-50%) scale(1.08);
+  }
+
+  .hover-settings {
+    left: 50%;
+    bottom: 18%;
+    transform: translateX(-50%);
+  }
+
+  .hover-settings:hover {
+    transform: translateX(-50%) scale(1.08);
+  }
+
+  .hover-close {
+    top: 16%;
+    right: 18%;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  @keyframes controls-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .drag-zone,

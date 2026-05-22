@@ -29,8 +29,8 @@ const defaults: Settings = {
   websocket_enabled: false,
   websocket_port: 1314,
   theme_mode: 'auto',
-  theme_light: 'Pomotroid',
-  theme_dark: 'Pomotroid',
+  theme_light: 'dicda',
+  theme_dark: 'dicda',
   dial_countdown: true,
   language: 'auto',
   verbose_logging: false,
@@ -46,10 +46,12 @@ const defaults: Settings = {
   window_opacity: 0.85,
   overlay_mode_enabled: true,
   overlay_locked_clickthrough: true,
-  overlay_min_size: 90,
+  overlay_min_size: 120,
   overlay_max_size: 420,
+  overlay_size: 220,
   overlay_progress_color_start: '#ff7a45',
   overlay_progress_color_end: '#ff2d75',
+  overlay_hover_activation_ms: 3000,
 };
 
 export const settings = writable<Settings>(defaults);

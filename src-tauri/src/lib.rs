@@ -15,7 +15,7 @@ use std::sync::{
 };
 
 use log::LevelFilter;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
 
 use commands::{
@@ -28,6 +28,26 @@ use commands::{
     window_set_clickthrough, window_set_mode, window_set_opacity, window_set_visibility,
     window_toggle_lock,
 };
+
+pub struct ExitState {
+    requested: AtomicBool,
+}
+
+impl ExitState {
+    fn new() -> Self {
+        Self {
+            requested: AtomicBool::new(false),
+        }
+    }
+
+    pub fn request(&self) {
+        self.requested.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_requested(&self) -> bool {
+        self.requested.load(Ordering::SeqCst)
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -67,7 +87,7 @@ pub fn run() {
                         env!("APP_BUILD_SHA")
                     );
                     log::info!(
-                        "Pomotroid v{} — data dir: {}",
+                        "dicda v{} — data dir: {}",
                         env!("CARGO_PKG_VERSION"),
                         app_data_dir.display()
                     );
@@ -85,9 +105,10 @@ pub fn run() {
             }
             app.manage(db.clone());
 
-            // --- Tray state (always created; icon populated only when min_to_tray is on) ---
+            // --- Tray state (icon shown when tray/overlay recovery requires it) ---
             let tray_state = tray::TrayState::new();
             app.manage(Arc::clone(&tray_state));
+            app.manage(ExitState::new());
 
             // --- Load settings once (used by Timer, Audio, etc.) ---
             let initial_settings = {
@@ -134,9 +155,9 @@ pub fn run() {
             );
             app.manage(timer);
 
-            // Create initial tray icon if tray_icon_enabled or min_to_tray is on,
-            // or if overlay lock is enabled so the user can recover from click-
-            // through mode.
+            // Create the initial tray icon when tray settings request it, or
+            // when overlay lock is enabled so the user can recover from
+            // click-through mode.
             if initial_settings.tray_icon_enabled
                 || initial_settings.min_to_tray
                 || initial_settings.overlay_locked_clickthrough
@@ -188,6 +209,7 @@ pub fn run() {
             // still hidden at this point so there is no visible flash.
             #[cfg(not(target_os = "macos"))]
             let _ = main_window.set_decorations(false);
+            let _ = main_window.set_skip_taskbar(true);
 
             // Enable macOS window tiling/arrangement.
             //
@@ -265,15 +287,10 @@ pub fn run() {
             }
 
             // Main timer window is now a single floating ball experience.
-            let initial_ball_size = initial_settings
-                .window_width
-                .zip(initial_settings.window_height)
-                .map(|(w, h)| w.max(h))
-                .unwrap_or(220)
-                .clamp(
-                    initial_settings.overlay_min_size,
-                    initial_settings.overlay_max_size,
-                );
+            let initial_ball_size = initial_settings.overlay_size.clamp(
+                initial_settings.overlay_min_size,
+                initial_settings.overlay_max_size,
+            );
             let _ = main_window.set_min_size(Some(tauri::PhysicalSize::new(
                 initial_settings.overlay_min_size,
                 initial_settings.overlay_min_size,
@@ -296,33 +313,34 @@ pub fn run() {
 
             // Persist window position/size on move and resize, and close child windows
             // when the main window is truly closed (not hidden to tray).
-            let db_for_close = db.clone();
             let win_for_close = main_window.clone();
             let app_for_close = app.handle().clone();
+            let tray_state_for_close = Arc::clone(&tray_state);
             let db_for_pos = db.clone();
             let win_for_pos = main_window.clone();
+            let app_for_resize = app.handle().clone();
             let square_resize_guard = Arc::new(AtomicBool::new(false));
             let square_resize_guard_for_event = Arc::clone(&square_resize_guard);
             main_window.on_window_event(move |event| {
                 match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
-                        let hide = db_for_close
-                            .lock()
-                            .ok()
-                            .and_then(|conn| settings::load(&conn).ok())
-                            .map(|s| s.min_to_tray_on_close)
+                        let exiting = app_for_close
+                            .try_state::<ExitState>()
+                            .map(|state| state.is_requested())
                             .unwrap_or(false);
-                        if hide {
-                            api.prevent_close();
-                            let _ = win_for_close.hide();
-                        } else {
-                            // Main window is truly closing — close child windows if open.
+                        if exiting {
+                            // Main window is truly closing: close child windows if open.
                             for label in ["settings", "stats"] {
                                 if let Some(win) = app_for_close.get_webview_window(label) {
                                     let _ = win.close();
                                 }
                             }
+                            return;
                         }
+
+                        api.prevent_close();
+                        let _ = win_for_close.hide();
+                        commands::ensure_tray_visible(&app_for_close, &tray_state_for_close);
                     }
                     tauri::WindowEvent::Moved(pos) => {
                         if let Ok(conn) = db_for_pos.lock() {
@@ -356,6 +374,8 @@ pub fn run() {
                                 settings::save_setting(&conn, "window_width", &width.to_string());
                             let _ =
                                 settings::save_setting(&conn, "window_height", &height.to_string());
+                            let _ =
+                                settings::save_setting(&conn, "overlay_size", &width.to_string());
                             // Also capture position, since some window managers shift the
                             // window origin when resizing.
                             if let Ok(pos) = win_for_pos.outer_position() {
@@ -363,6 +383,9 @@ pub fn run() {
                                     settings::save_setting(&conn, "window_x", &pos.x.to_string());
                                 let _ =
                                     settings::save_setting(&conn, "window_y", &pos.y.to_string());
+                            }
+                            if let Ok(updated) = settings::load(&conn) {
+                                app_for_resize.emit("settings:changed", &updated).ok();
                             }
                         }
                     }

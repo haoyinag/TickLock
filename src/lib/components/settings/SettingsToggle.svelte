@@ -102,7 +102,7 @@
     transform: translateX(16px);
     /* ON state: the background color is always chosen by the theme designer to
        contrast with the accent, so it reads cleanly and stays within the palette.
-       e.g. dark navy on teal (Pomotroid), dark charcoal on yellow (Gruvbox). */
+       e.g. dark navy on teal (dicda), dark charcoal on yellow (Gruvbox). */
     background: var(--color-background);
   }
 </style>

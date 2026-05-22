@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::audio::{self, AudioManager};
 use crate::db::{queries, DbState};
@@ -22,9 +22,27 @@ use crate::websocket::{self, WsState};
 const DEFAULT_WINDOW_WIDTH: u32 = 360;
 const DEFAULT_WINDOW_HEIGHT: u32 = 478;
 const OVERLAY_SIZE: u32 = 220;
-const OVERLAY_MIN_SIZE: u32 = 90;
+const OVERLAY_MIN_SIZE: u32 = 120;
 const OVERLAY_MAX_SIZE: u32 = 1000;
-const OVERLAY_MONITOR_INTERVAL: Duration = Duration::from_secs(1);
+const OVERLAY_MONITOR_INTERVAL: Duration = Duration::from_millis(100);
+
+fn overlay_min(settings: &Settings) -> u32 {
+    settings
+        .overlay_min_size
+        .clamp(OVERLAY_MIN_SIZE, OVERLAY_MAX_SIZE)
+}
+
+fn overlay_max(settings: &Settings) -> u32 {
+    settings
+        .overlay_max_size
+        .clamp(overlay_min(settings), OVERLAY_MAX_SIZE)
+}
+
+fn overlay_size(settings: &Settings) -> u32 {
+    settings
+        .overlay_size
+        .clamp(overlay_min(settings), overlay_max(settings))
+}
 
 fn normal_window_size(settings: &Settings) -> tauri::PhysicalSize<u32> {
     let width = settings
@@ -41,8 +59,9 @@ fn normal_window_size(settings: &Settings) -> tauri::PhysicalSize<u32> {
 fn apply_overlay_mode(window: &tauri::WebviewWindow, settings: &Settings) -> Result<(), String> {
     let enabled = settings.overlay_mode_enabled;
     if enabled {
+        let size = overlay_size(settings);
         window
-            .set_size(tauri::PhysicalSize::new(OVERLAY_SIZE, OVERLAY_SIZE))
+            .set_size(tauri::PhysicalSize::new(size, size))
             .map_err(|e| e.to_string())?;
         window.set_resizable(false).map_err(|e| e.to_string())?;
         window
@@ -75,16 +94,30 @@ fn apply_overlay_size_constraints(
     window: &tauri::WebviewWindow,
     settings: &Settings,
 ) -> Result<(), String> {
-    let min = settings
-        .overlay_min_size
-        .clamp(OVERLAY_MIN_SIZE, OVERLAY_MAX_SIZE);
-    let max = settings.overlay_max_size.clamp(min, OVERLAY_MAX_SIZE);
+    let min = overlay_min(settings);
+    let max = overlay_max(settings);
     window
         .set_min_size(Some(tauri::PhysicalSize::new(min, min)))
         .map_err(|e| e.to_string())?;
     window
         .set_max_size(Some(tauri::PhysicalSize::new(max, max)))
         .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn apply_overlay_size(window: &tauri::WebviewWindow, settings: &Settings) -> Result<u32, String> {
+    let size = overlay_size(settings);
+    window
+        .set_size(tauri::PhysicalSize::new(size, size))
+        .map_err(|e| e.to_string())?;
+    Ok(size)
+}
+
+fn save_overlay_size(conn: &rusqlite::Connection, size: u32) -> Result<(), String> {
+    let value = size.to_string();
+    settings::save_setting(conn, "overlay_size", &value).map_err(|e| e.to_string())?;
+    settings::save_setting(conn, "window_width", &value).map_err(|e| e.to_string())?;
+    settings::save_setting(conn, "window_height", &value).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -119,7 +152,12 @@ fn should_show_tray(settings: &Settings) -> bool {
 
 fn sync_tray_visibility(app: &AppHandle, tray_state: &Arc<TrayState>, settings: &Settings) {
     let is_visible = tray_state.icon.lock().unwrap().is_some();
-    let needs_tray = should_show_tray(settings);
+    let main_hidden = app
+        .get_webview_window("main")
+        .and_then(|window| window.is_visible().ok())
+        .map(|visible| !visible)
+        .unwrap_or(false);
+    let needs_tray = should_show_tray(settings) || main_hidden;
 
     if needs_tray && !is_visible {
         #[cfg(target_os = "linux")]
@@ -139,9 +177,60 @@ fn sync_tray_visibility(app: &AppHandle, tray_state: &Arc<TrayState>, settings: 
     }
 }
 
+pub(crate) fn ensure_tray_visible(app: &AppHandle, tray_state: &Arc<TrayState>) {
+    #[cfg(target_os = "linux")]
+    {
+        let app_handle = app.clone();
+        let ts = Arc::clone(tray_state);
+        std::thread::spawn(move || {
+            tray::create_tray(&app_handle, &ts);
+        });
+    }
+    #[cfg(not(target_os = "linux"))]
+    tray::create_tray(app, tray_state);
+}
+
+#[cfg(target_os = "windows")]
+fn cursor_inside_main_window(window: &tauri::WebviewWindow) -> bool {
+    use windows_sys::Win32::Foundation::POINT;
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+
+    let mut point = POINT { x: 0, y: 0 };
+    let ok = unsafe { GetCursorPos(&mut point) };
+    if ok == 0 {
+        return false;
+    }
+
+    let Ok(pos) = window.outer_position() else {
+        return false;
+    };
+    let Ok(size) = window.outer_size() else {
+        return false;
+    };
+
+    point.x >= pos.x
+        && point.y >= pos.y
+        && point.x < pos.x + size.width as i32
+        && point.y < pos.y + size.height as i32
+}
+
+#[cfg(not(target_os = "windows"))]
+fn cursor_inside_main_window(window: &tauri::WebviewWindow) -> bool {
+    let Ok(pos) = window.cursor_position() else {
+        return false;
+    };
+    let Ok(size) = window.inner_size() else {
+        return false;
+    };
+
+    pos.x >= 0.0 && pos.y >= 0.0 && pos.x < size.width as f64 && pos.y < size.height as f64
+}
+
 pub(crate) fn spawn_overlay_monitor(app: AppHandle, db: DbState, tray_state: Arc<TrayState>) {
     tauri::async_runtime::spawn(async move {
-        let mut last_locked: Option<bool> = None;
+        let mut applied_clickthrough: Option<bool> = None;
+        let mut hover_started_at: Option<Instant> = None;
+        let mut hover_ready = false;
         loop {
             tokio::time::sleep(OVERLAY_MONITOR_INTERVAL).await;
 
@@ -153,10 +242,44 @@ pub(crate) fn spawn_overlay_monitor(app: AppHandle, db: DbState, tray_state: Arc
                 continue;
             };
 
-            if last_locked != Some(settings.overlay_locked_clickthrough) {
-                let _ = apply_clickthrough(&window, settings.overlay_locked_clickthrough);
-                apply_overlay_lock_chrome(&window, settings.overlay_locked_clickthrough);
-                last_locked = Some(settings.overlay_locked_clickthrough);
+            if !settings.overlay_locked_clickthrough {
+                hover_started_at = None;
+                if hover_ready {
+                    app.emit("overlay:hover-ready", false).ok();
+                    hover_ready = false;
+                }
+                if applied_clickthrough != Some(false) {
+                    let _ = apply_clickthrough(&window, false);
+                    apply_overlay_lock_chrome(&window, false);
+                    applied_clickthrough = Some(false);
+                }
+                sync_tray_visibility(&app, &tray_state, &settings);
+                continue;
+            }
+
+            let cursor_inside = cursor_inside_main_window(&window);
+            if cursor_inside {
+                let started_at = hover_started_at.get_or_insert_with(Instant::now);
+                let hover_delay = Duration::from_millis(
+                    settings.overlay_hover_activation_ms.clamp(3000, 10000) as u64,
+                );
+                if !hover_ready && started_at.elapsed() >= hover_delay {
+                    hover_ready = true;
+                    let _ = apply_clickthrough(&window, false);
+                    applied_clickthrough = Some(false);
+                    app.emit("overlay:hover-ready", true).ok();
+                }
+            } else {
+                hover_started_at = None;
+                if hover_ready {
+                    hover_ready = false;
+                    app.emit("overlay:hover-ready", false).ok();
+                }
+                if applied_clickthrough != Some(true) {
+                    let _ = apply_clickthrough(&window, true);
+                    apply_overlay_lock_chrome(&window, true);
+                    applied_clickthrough = Some(true);
+                }
             }
             sync_tray_visibility(&app, &tray_state, &settings);
         }
@@ -302,16 +425,16 @@ pub fn settings_set(
         }
     }
 
-    if matches!(key.as_str(), "overlay_min_size" | "overlay_max_size") {
+    if matches!(
+        key.as_str(),
+        "overlay_min_size" | "overlay_max_size" | "overlay_size"
+    ) {
         if let Some(window) = app.get_webview_window("main") {
             let _ = apply_overlay_size_constraints(&window, &new_settings);
-            if let Ok(current) = window.inner_size() {
-                let min = new_settings
-                    .overlay_min_size
-                    .clamp(OVERLAY_MIN_SIZE, OVERLAY_MAX_SIZE);
-                let max = new_settings.overlay_max_size.clamp(min, OVERLAY_MAX_SIZE);
-                let next = current.width.max(current.height).clamp(min, max);
-                let _ = window.set_size(tauri::PhysicalSize::new(next, next));
+            if let Ok(size) = apply_overlay_size(&window, &new_settings) {
+                if let Ok(conn) = db.lock() {
+                    let _ = save_overlay_size(&conn, size);
+                }
             }
         }
     }
@@ -434,9 +557,9 @@ pub fn settings_reset_defaults(
         }
     }
 
-    // After reset, defaults have tray_icon_enabled=false and min_to_tray=false,
-    // so destroy any active tray icon.
-    tray::destroy_tray(&tray_state);
+    // Reset may still require a tray icon for overlay recovery or because the
+    // main window is hidden, so sync instead of unconditionally hiding it.
+    sync_tray_visibility(&app, &tray_state, &new_settings);
 
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
 
@@ -557,7 +680,11 @@ pub fn stats_get_heatmap(db: State<'_, DbState>) -> Result<HeatmapStats, String>
 
 /// Show or hide the main window.
 #[tauri::command]
-pub fn window_set_visibility(visible: bool, app: AppHandle) -> Result<(), String> {
+pub fn window_set_visibility(
+    visible: bool,
+    app: AppHandle,
+    tray_state: State<'_, Arc<TrayState>>,
+) -> Result<(), String> {
     log::debug!("[window] set visibility={visible}");
     let window = app
         .get_webview_window("main")
@@ -567,6 +694,7 @@ pub fn window_set_visibility(visible: bool, app: AppHandle) -> Result<(), String
         window.set_focus().map_err(|e| e.to_string())?;
     } else {
         window.hide().map_err(|e| e.to_string())?;
+        ensure_tray_visible(&app, &tray_state);
     }
     Ok(())
 }
@@ -627,29 +755,38 @@ pub fn window_adjust_overlay_size(
     };
     let current = window.inner_size().map_err(|e| e.to_string())?;
     let base = current.width.max(current.height) as i32;
-    let min = settings
-        .overlay_min_size
-        .clamp(OVERLAY_MIN_SIZE, OVERLAY_MAX_SIZE) as i32;
-    let max = settings
-        .overlay_max_size
-        .clamp(settings.overlay_min_size, OVERLAY_MAX_SIZE) as i32;
+    let min = overlay_min(&settings) as i32;
+    let max = overlay_max(&settings) as i32;
     let next = (base + delta).clamp(min, max) as u32;
     window
         .set_size(tauri::PhysicalSize::new(next, next))
         .map_err(|e| e.to_string())?;
+    {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+        save_overlay_size(&conn, next)?;
+    }
     Ok(next)
 }
 
 /// Reset the floating overlay to its default square size.
 #[tauri::command]
-pub fn window_reset_overlay_size(app: AppHandle) -> Result<u32, String> {
+pub fn window_reset_overlay_size(db: State<'_, DbState>, app: AppHandle) -> Result<u32, String> {
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
+    let settings = {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+        settings::load(&conn).map_err(|e| e.to_string())?
+    };
+    let size = OVERLAY_SIZE.clamp(overlay_min(&settings), overlay_max(&settings));
     window
-        .set_size(tauri::PhysicalSize::new(OVERLAY_SIZE, OVERLAY_SIZE))
+        .set_size(tauri::PhysicalSize::new(size, size))
         .map_err(|e| e.to_string())?;
-    Ok(OVERLAY_SIZE)
+    {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+        save_overlay_size(&conn, size)?;
+    }
+    Ok(size)
 }
 
 /// Keep the main timer in floating ball mode.

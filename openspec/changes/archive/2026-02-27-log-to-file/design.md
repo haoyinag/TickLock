@@ -1,6 +1,6 @@
 ## Context
 
-Pomotroid currently has no persistent diagnostic output. All error handling uses `eprintln!` (stderr), which is discarded in production AppImage/dmg/exe builds. When users encounter bugs they have nothing to submit. `tauri-plugin-log` is already declared in `Cargo.toml` but never registered; `tracing` and `tracing-subscriber` are declared but entirely unused. The work is primarily wiring and instrumentation rather than new infrastructure.
+dicda currently has no persistent diagnostic output. All error handling uses `eprintln!` (stderr), which is discarded in production AppImage/dmg/exe builds. When users encounter bugs they have nothing to submit. `tauri-plugin-log` is already declared in `Cargo.toml` but never registered; `tracing` and `tracing-subscriber` are declared but entirely unused. The work is primarily wiring and instrumentation rather than new infrastructure.
 
 ## Goals / Non-Goals
 
@@ -27,7 +27,7 @@ Pomotroid currently has no persistent diagnostic output. All error handling uses
 
 **Chosen:** `tauri-plugin-log` (already a declared dependency, uses the `log` crate).
 
-`tracing` is a richer framework (spans, structured fields, async-native) but `tauri-plugin-log` does not integrate with it and adding a compatible bridge (`tracing-log`) adds complexity for no user-visible benefit. All instrumentation in Pomotroid is sequential enough that flat log lines are sufficient. `tracing` and `tracing-subscriber` are removed from `Cargo.toml`.
+`tracing` is a richer framework (spans, structured fields, async-native) but `tauri-plugin-log` does not integrate with it and adding a compatible bridge (`tracing-log`) adds complexity for no user-visible benefit. All instrumentation in dicda is sequential enough that flat log lines are sufficient. `tracing` and `tracing-subscriber` are removed from `Cargo.toml`.
 
 **Macros used:** `log::error!`, `log::warn!`, `log::info!`, `log::debug!` from the `log` crate (re-exported by the plugin).
 
@@ -56,13 +56,13 @@ When the setting is toggled at runtime, the `settings_set` command handler calls
 
 ### Log file path
 
-`tauri-plugin-log` resolves via `app.path().app_log_dir()` using the app identifier `com.splode.pomotroid`:
+`tauri-plugin-log` resolves via `app.path().app_log_dir()` using the app identifier `com.splode.dicda`:
 
 | Platform | Path                                                     |
 | -------- | -------------------------------------------------------- |
-| Linux    | `~/.local/share/com.splode.pomotroid/logs/pomotroid.log` |
-| macOS    | `~/Library/Logs/com.splode.pomotroid/pomotroid.log`      |
-| Windows  | `%APPDATA%\com.splode.pomotroid\logs\pomotroid.log`      |
+| Linux    | `~/.local/share/com.splode.dicda/logs/dicda.log` |
+| macOS    | `~/Library/Logs/com.splode.dicda/dicda.log`      |
+| Windows  | `%APPDATA%\com.splode.dicda\logs\dicda.log`      |
 
 ---
 

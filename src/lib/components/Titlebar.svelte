@@ -58,7 +58,7 @@
     }
     new WebviewWindow('settings', {
       url: '/settings',
-      title: 'Pomotroid — Settings',
+      title: 'dicda — Settings',
       width: 720,
       height: 520,
       // On macOS: native decorations + overlay titlebar for rounded corners and
@@ -81,7 +81,7 @@
     }
     new WebviewWindow('stats', {
       url: '/stats',
-      title: 'Pomotroid — Statistics',
+      title: 'dicda — Statistics',
       width: 840,
       height: 520,
       decorations: isMac,

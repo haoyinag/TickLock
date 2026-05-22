@@ -36,13 +36,17 @@
 
   let localPort = $state(String($settings.websocket_port));
   let localOpacity = $state(Math.round($settings.window_opacity * 100));
+  let localOverlaySize = $state($settings.overlay_size);
   let localMinSize = $state(String($settings.overlay_min_size));
   let localMaxSize = $state(String($settings.overlay_max_size));
+  let localHoverActivationMs = $state($settings.overlay_hover_activation_ms);
   $effect(() => {
     localPort = String($settings.websocket_port);
     localOpacity = Math.round($settings.window_opacity * 100);
+    localOverlaySize = $settings.overlay_size;
     localMinSize = String($settings.overlay_min_size);
     localMaxSize = String($settings.overlay_max_size);
+    localHoverActivationMs = $settings.overlay_hover_activation_ms;
   });
 
   let langOpen = $state(false);
@@ -101,6 +105,20 @@
     await setWindowOpacity(opacityValue).catch(() => undefined);
   }
 
+  async function setHoverActivationMs(value: number) {
+    const clamped = Math.max(3000, Math.min(10000, value));
+    localHoverActivationMs = clamped;
+    const updated = await setSetting('overlay_hover_activation_ms', String(clamped));
+    settings.set(updated);
+  }
+
+  async function setOverlaySize(value: number) {
+    const clamped = Math.max($settings.overlay_min_size, Math.min(value, $settings.overlay_max_size));
+    localOverlaySize = clamped;
+    const updated = await setSetting('overlay_size', String(clamped));
+    settings.set(updated);
+  }
+
   async function setNumberSetting(key: string, value: number) {
     const updated = await setSetting(key, String(value));
     settings.set(updated);
@@ -112,7 +130,7 @@
       localMinSize = String($settings.overlay_min_size);
       return;
     }
-    const value = Math.max(90, Math.min(raw, $settings.overlay_max_size));
+    const value = Math.max(120, Math.min(raw, $settings.overlay_max_size));
     localMinSize = String(value);
     await setNumberSetting('overlay_min_size', value);
   }
@@ -294,6 +312,27 @@
     onclick={() => setOverlayLock(!$settings.overlay_locked_clickthrough)}
   />
 
+  <div class="row hover-delay-row">
+    <span class="label-block">
+      <span class="label">Hover activation delay / &#24748;&#20572;&#35302;&#21457;&#24310;&#36831;</span>
+      <span class="description">How long the mouse must stay over the locked ball before controls appear.</span>
+    </span>
+    <div class="delay-editor">
+      <input
+        type="range"
+        min="3000"
+        max="10000"
+        step="500"
+        value={localHoverActivationMs}
+        oninput={(e) => {
+          const value = Number((e.currentTarget as HTMLInputElement).value);
+          setHoverActivationMs(value);
+        }}
+      />
+      <span class="delay-value">{(localHoverActivationMs / 1000).toFixed(1)}s</span>
+    </div>
+  </div>
+
   <div class="row opacity-row">
     <span class="label-block">
       <span class="label">Shell opacity / &#22771;&#23618;&#36879;&#26126;&#24230;</span>
@@ -316,6 +355,27 @@
     </div>
   </div>
 
+  <div class="row overlay-size-row">
+    <span class="label-block">
+      <span class="label">Floating ball size / &#24748;&#28014;&#29699;&#23610;&#23544;</span>
+      <span class="description">Adjusts the whole always-on-top floating window and timer UI together.</span>
+    </span>
+    <div class="size-slider-editor">
+      <input
+        type="range"
+        min={$settings.overlay_min_size}
+        max={$settings.overlay_max_size}
+        step="1"
+        value={localOverlaySize}
+        oninput={(e) => {
+          const value = Number((e.currentTarget as HTMLInputElement).value);
+          setOverlaySize(value);
+        }}
+      />
+      <span class="size-value">{localOverlaySize}px</span>
+    </div>
+  </div>
+
   <div class="row size-row">
     <span class="label-block">
       <span class="label">Size limits / &#23610;&#23544;&#33539;&#22260;</span>
@@ -327,7 +387,7 @@
         <input
           class="size-input"
           type="number"
-          min="90"
+          min="120"
           max={$settings.overlay_max_size}
           bind:value={localMinSize}
           onblur={handleMinSizeBlur}
@@ -437,7 +497,9 @@
     border-bottom: 1px solid var(--color-separator);
   }
 
-  .opacity-row {
+  .opacity-row,
+  .overlay-size-row,
+  .hover-delay-row {
     align-items: flex-start;
   }
 
@@ -492,7 +554,9 @@
     line-height: 1.6;
   }
 
-  .opacity-editor {
+  .opacity-editor,
+  .size-slider-editor,
+  .delay-editor {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -541,11 +605,15 @@
     cursor: pointer;
   }
 
-  .opacity-editor input[type='range'] {
+  .opacity-editor input[type='range'],
+  .size-slider-editor input[type='range'],
+  .delay-editor input[type='range'] {
     width: 130px;
   }
 
-  .opacity-value {
+  .opacity-value,
+  .size-value,
+  .delay-value {
     font-size: 0.8rem;
     color: var(--color-foreground-darker, var(--color-foreground));
     min-width: 44px;

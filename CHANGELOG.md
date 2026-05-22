@@ -28,7 +28,7 @@
 
 ### Window
 
-- **Window remembers its position and size across restarts** — Pomotroid now saves its position and size when moved or resized and restores them on the next launch. On multi-monitor setups the window reopens on the same display where it was last closed. If the saved position falls entirely outside all connected monitors (e.g. a previously connected display is no longer available), the window falls back to its default position so it is never unreachable. Resetting all settings clears the saved geometry, so the next launch returns to the default size and position.
+- **Window remembers its position and size across restarts** — dicda now saves its position and size when moved or resized and restores them on the next launch. On multi-monitor setups the window reopens on the same display where it was last closed. If the saved position falls entirely outside all connected monitors (e.g. a previously connected display is no longer available), the window falls back to its default position so it is never unreachable. Resetting all settings clears the saved geometry, so the next launch returns to the default size and position.
 
 ## [v1.5.2] - 2026-04-20
 
@@ -86,7 +86,7 @@
 
 ### Features
 
-- **In-app auto-update** — Pomotroid now checks for new releases automatically when the Settings window opens. If an update is available, an "Install vX.Y.Z" button appears in Settings → About; clicking it downloads, verifies, and installs the update then relaunches immediately. Bundles are Ed25519-signed in CI and verified by the updater before installation. Automatic checking can be disabled via the new "Check for Updates Automatically" toggle in Settings → System. Linux users who installed via `.deb` or `.rpm` are not affected — in-app updates apply to AppImage only; package-manager installations should update through their respective package manager.
+- **In-app auto-update** — dicda now checks for new releases automatically when the Settings window opens. If an update is available, an "Install vX.Y.Z" button appears in Settings → About; clicking it downloads, verifies, and installs the update then relaunches immediately. Bundles are Ed25519-signed in CI and verified by the updater before installation. Automatic checking can be disabled via the new "Check for Updates Automatically" toggle in Settings → System. Linux users who installed via `.deb` or `.rpm` are not affected — in-app updates apply to AppImage only; package-manager installations should update through their respective package manager.
 
 #### macOS
 
@@ -153,7 +153,7 @@
 
 ### Complete Rewrite — Electron → Tauri 2 + Rust + Svelte 5
 
-Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has been replaced with a fully native Tauri 2 application backed by Rust and a Svelte 5 frontend, resulting in a drastically smaller footprint, faster startup, and no Chromium dependency.
+dicda has been rebuilt from the ground up. The Electron + Vue.js stack has been replaced with a fully native Tauri 2 application backed by Rust and a Svelte 5 frontend, resulting in a drastically smaller footprint, faster startup, and no Chromium dependency.
 
 ### Timer
 
@@ -175,7 +175,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 ### Themes & Appearance
 
-- **37 bundled themes** including Pomotroid (dark), Pomotroid Light, Dracula, Nord, Tokyo Night, Gruvbox, Solarized, GitHub, One Dark, Rose Piné (3 variants), Catppuccin (4 variants), Synthwave, Ayu, Everforest, Kanagawa, Monokai, Night Owl, and more
+- **37 bundled themes** including dicda (dark), dicda Light, Dracula, Nord, Tokyo Night, Gruvbox, Solarized, GitHub, One Dark, Rose Piné (3 variants), Catppuccin (4 variants), Synthwave, Ayu, Everforest, Kanagawa, Monokai, Night Owl, and more
 - **Auto light / dark mode** — follows the OS `prefers-color-scheme` preference automatically; separate theme pickers for light and dark
 - **Custom theme hot-reload** — drop a JSON theme file into the user themes folder and it appears instantly without a restart
 - Theme colours propagate throughout the full UI and into the tray icon arc
@@ -256,13 +256,13 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.13.0"></a>
 
-## [v0.13.0](https://github.com/Splode/pomotroid/compare/v0.12.0...v0.13.0)
+## [v0.13.0](https://github.com/Splode/dicda/compare/v0.12.0...v0.13.0)
 
 > 2021-01-14
 
 ### Bug Fixes
 
-- 2695b5c [#108](https://github.com/Splode/pomotroid/issues/108) Visual feedback for settings checkbox
+- 2695b5c [#108](https://github.com/Splode/dicda/issues/108) Visual feedback for settings checkbox
 - a26fc10 tick sounds correctly during break
 - dfca313 disable menu so Ctrl+W doesn't close app
 - 8f54ba7 scoop manifest hash for v0.12.0
@@ -291,7 +291,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.12.0"></a>
 
-## [v0.12.0](https://github.com/Splode/pomotroid/compare/v0.11.1...v0.12.0)
+## [v0.12.0](https://github.com/Splode/dicda/compare/v0.11.1...v0.12.0)
 
 > 2020-09-06
 
@@ -307,13 +307,13 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.11.1"></a>
 
-## [v0.11.1](https://github.com/Splode/pomotroid/compare/v0.11.0...v0.11.1)
+## [v0.11.1](https://github.com/Splode/dicda/compare/v0.11.0...v0.11.1)
 
 > 2020-07-01
 
 ### Chores
 
-- 0a1eae9 update pomotroid scoop manifest for v0.11.0
+- 0a1eae9 update dicda scoop manifest for v0.11.0
 
 ### Features
 
@@ -321,7 +321,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.11.0"></a>
 
-## [v0.11.0](https://github.com/Splode/pomotroid/compare/v0.10.0...v0.11.0)
+## [v0.11.0](https://github.com/Splode/dicda/compare/v0.10.0...v0.11.0)
 
 > 2020-06-28
 
@@ -344,7 +344,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.10.0"></a>
 
-## [v0.10.0](https://github.com/Splode/pomotroid/compare/v0.9.0...v0.10.0)
+## [v0.10.0](https://github.com/Splode/dicda/compare/v0.9.0...v0.10.0)
 
 > 2020-06-01
 
@@ -353,7 +353,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 - c5ddf9f set default theme if not present in config
 - 423fc19 adjust various theme accent colors
 - 1386dc3 timer play and pause button using css variables
-- 750c917 contrast of pomotroid theme color
+- 750c917 contrast of dicda theme color
 - 203d3b5 theme asset pathing in production
 - 87e119d color timer footer icons using theme colors
 - 8e85bfa add css variables to logo in about view
@@ -404,7 +404,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 - b491721 style themes in Drawer based on themes' own style
 - 1ad836c add utility methods on Themer
 - 6ed3340 set theme preference
-- 0914810 add pomotroid theme file
+- 0914810 add dicda theme file
 - bce8180 set tray icon color based on current theme
 - fdf223a add theme support
 - 36ea81a add timer tick audio setting
@@ -413,7 +413,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.9.0"></a>
 
-## [v0.9.0](https://github.com/Splode/pomotroid/compare/v0.8.0...v0.9.0)
+## [v0.9.0](https://github.com/Splode/dicda/compare/v0.8.0...v0.9.0)
 
 > 2020-05-25
 
@@ -438,7 +438,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.8.0"></a>
 
-## [v0.8.0](https://github.com/Splode/pomotroid/compare/v0.7.1...v0.8.0)
+## [v0.8.0](https://github.com/Splode/dicda/compare/v0.7.1...v0.8.0)
 
 > 2020-05-09
 
@@ -453,7 +453,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.7.1"></a>
 
-## [v0.7.1](https://github.com/Splode/pomotroid/compare/v0.7.0...v0.7.1)
+## [v0.7.1](https://github.com/Splode/dicda/compare/v0.7.0...v0.7.1)
 
 > 2020-04-03
 
@@ -473,14 +473,14 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.7.0"></a>
 
-## [v0.7.0](https://github.com/Splode/pomotroid/compare/v0.6.2...v0.7.0)
+## [v0.7.0](https://github.com/Splode/dicda/compare/v0.6.2...v0.7.0)
 
 > 2020-01-05
 
 ### Bug Fixes
 
 - 1bcc01a TrayIcon EventBus listener uses new 'timer-tick' event
-- f29a5da [#57](https://github.com/Splode/pomotroid/issues/57) Hotkey to start/stop timer
+- f29a5da [#57](https://github.com/Splode/dicda/issues/57) Hotkey to start/stop timer
 
 ### Chores
 
@@ -504,7 +504,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.6.2"></a>
 
-## [v0.6.2](https://github.com/Splode/pomotroid/compare/v0.6.1...v0.6.2)
+## [v0.6.2](https://github.com/Splode/dicda/compare/v0.6.1...v0.6.2)
 
 > 2019-09-01
 
@@ -518,7 +518,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.6.1"></a>
 
-## [v0.6.1](https://github.com/Splode/pomotroid/compare/v0.6.0...v0.6.1)
+## [v0.6.1](https://github.com/Splode/dicda/compare/v0.6.0...v0.6.1)
 
 > 2019-05-17
 
@@ -544,7 +544,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.6.0"></a>
 
-## [v0.6.0](https://github.com/Splode/pomotroid/compare/v0.5.0...v0.6.0)
+## [v0.6.0](https://github.com/Splode/dicda/compare/v0.5.0...v0.6.0)
 
 > 2019-02-09
 
@@ -571,7 +571,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.5.0"></a>
 
-## [v0.5.0](https://github.com/Splode/pomotroid/compare/v0.4.1...v0.5.0)
+## [v0.5.0](https://github.com/Splode/dicda/compare/v0.4.1...v0.5.0)
 
 > 2019-02-04
 
@@ -588,7 +588,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.4.1"></a>
 
-## [v0.4.1](https://github.com/Splode/pomotroid/compare/v0.4.0...v0.4.1)
+## [v0.4.1](https://github.com/Splode/dicda/compare/v0.4.0...v0.4.1)
 
 > 2019-02-02
 
@@ -616,7 +616,7 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.4.0"></a>
 
-## [v0.4.0](https://github.com/Splode/pomotroid/compare/v0.3.0...v0.4.0)
+## [v0.4.0](https://github.com/Splode/dicda/compare/v0.3.0...v0.4.0)
 
 > 2018-09-05
 
@@ -630,25 +630,25 @@ Pomotroid has been rebuilt from the ground up. The Electron + Vue.js stack has b
 
 <a name="v0.3.0"></a>
 
-## [v0.3.0](https://github.com/Splode/pomotroid/compare/v0.2.0...v0.3.0)
+## [v0.3.0](https://github.com/Splode/dicda/compare/v0.2.0...v0.3.0)
 
 > 2018-04-05
 
 <a name="v0.2.0"></a>
 
-## [v0.2.0](https://github.com/Splode/pomotroid/compare/v0.1.2...v0.2.0)
+## [v0.2.0](https://github.com/Splode/dicda/compare/v0.1.2...v0.2.0)
 
 > 2018-03-13
 
 <a name="v0.1.2"></a>
 
-## [v0.1.2](https://github.com/Splode/pomotroid/compare/v0.1.1...v0.1.2)
+## [v0.1.2](https://github.com/Splode/dicda/compare/v0.1.1...v0.1.2)
 
 > 2018-03-08
 
 <a name="v0.1.1"></a>
 
-## [v0.1.1](https://github.com/Splode/pomotroid/compare/v0.1.0...v0.1.1)
+## [v0.1.1](https://github.com/Splode/dicda/compare/v0.1.0...v0.1.1)
 
 > 2018-01-31
 

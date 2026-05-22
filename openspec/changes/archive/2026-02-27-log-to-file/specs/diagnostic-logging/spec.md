@@ -2,22 +2,22 @@
 
 ### Requirement: Log file written to OS-conventional directory
 
-The system SHALL write a persistent log file to the platform's conventional application log directory, resolved via `app.path().app_log_dir()` using the app identifier `com.splode.pomotroid`.
+The system SHALL write a persistent log file to the platform's conventional application log directory, resolved via `app.path().app_log_dir()` using the app identifier `com.splode.dicda`.
 
 #### Scenario: Log directory on Linux
 
-- **WHEN** Pomotroid runs on Linux
-- **THEN** log files are written under `~/.local/share/com.splode.pomotroid/logs/`
+- **WHEN** dicda runs on Linux
+- **THEN** log files are written under `~/.local/share/com.splode.dicda/logs/`
 
 #### Scenario: Log directory on macOS
 
-- **WHEN** Pomotroid runs on macOS
-- **THEN** log files are written under `~/Library/Logs/com.splode.pomotroid/`
+- **WHEN** dicda runs on macOS
+- **THEN** log files are written under `~/Library/Logs/com.splode.dicda/`
 
 #### Scenario: Log directory on Windows
 
-- **WHEN** Pomotroid runs on Windows
-- **THEN** log files are written under `%APPDATA%\com.splode.pomotroid\logs\`
+- **WHEN** dicda runs on Windows
+- **THEN** log files are written under `%APPDATA%\com.splode.dicda\logs\`
 
 ---
 

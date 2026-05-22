@@ -1,6 +1,6 @@
 ## Context
 
-Pomotroid currently has no mechanism to notify users of new releases. Users must manually monitor GitHub or the releases page. Tauri 2 ships a first-party updater plugin (`tauri-plugin-updater`) that handles Ed25519-signed update manifests, bundle downloading, and installation. The project already has a CI pipeline (GitHub Actions) that builds release bundles and commits a Scoop manifest (`pomotroid.json`) back to `main` — the autoupdate manifest will follow the same pattern.
+dicda currently has no mechanism to notify users of new releases. Users must manually monitor GitHub or the releases page. Tauri 2 ships a first-party updater plugin (`tauri-plugin-updater`) that handles Ed25519-signed update manifests, bundle downloading, and installation. The project already has a CI pipeline (GitHub Actions) that builds release bundles and commits a Scoop manifest (`dicda.json`) back to `main` — the autoupdate manifest will follow the same pattern.
 
 ## Goals / Non-Goals
 
@@ -31,7 +31,7 @@ Pomotroid currently has no mechanism to notify users of new releases. Users must
 ### D2: Host `latest.json` committed to `main` (not a GitHub Release asset)
 
 **Decision**: CI generates and commits `latest.json` to the repo root on every release build.
-**Rationale**: Pomotroid already does this for `pomotroid.json` (Scoop manifest). Same CI pattern, same atomic commit, no extra GitHub Releases API calls needed from the updater. The raw GitHub URL for a file on `main` is stable and version-independent.
+**Rationale**: dicda already does this for `dicda.json` (Scoop manifest). Same CI pattern, same atomic commit, no extra GitHub Releases API calls needed from the updater. The raw GitHub URL for a file on `main` is stable and version-independent.
 **Alternative considered**: Attach `latest.json` as a GitHub Release asset. More semantically correct but requires the updater endpoint URL to change per release or use a permanent redirect, adding complexity.
 **Alternative considered**: Use `releases.tauri.app` (Tauri's hosted manifest service). Adds an external service dependency; Option A is simpler and self-contained.
 

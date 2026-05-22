@@ -1,6 +1,6 @@
 ### Requirement: Local shortcuts are active while any app window has focus
 
-The system SHALL handle a configurable set of keyboard shortcuts that fire when the user presses a bound key while any Pomotroid window (main or settings) has OS focus. Local shortcuts SHALL NOT fire when the focus is inside a text input element.
+The system SHALL handle a configurable set of keyboard shortcuts that fire when the user presses a bound key while any dicda window (main or settings) has OS focus. Local shortcuts SHALL NOT fire when the focus is inside a text input element.
 
 #### Scenario: Shortcut fires in main window
 

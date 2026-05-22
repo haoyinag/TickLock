@@ -75,10 +75,14 @@ pub struct Settings {
     pub overlay_min_size: u32,
     /// Maximum floating ball size in physical pixels.
     pub overlay_max_size: u32,
+    /// Current floating ball size in physical pixels.
+    pub overlay_size: u32,
     /// Progress ring gradient start color.
     pub overlay_progress_color_start: String,
     /// Progress ring gradient end color.
     pub overlay_progress_color_end: String,
+    /// Delay before locked hover temporarily enables controls, in milliseconds.
+    pub overlay_hover_activation_ms: u32,
 }
 
 impl Default for Settings {
@@ -97,8 +101,8 @@ impl Default for Settings {
             long_breaks_enabled: true,
             dial_countdown: true,
             theme_mode: "auto".to_string(),
-            theme_light: "Pomotroid Light".to_string(),
-            theme_dark: "Pomotroid".to_string(),
+            theme_light: "dicda Light".to_string(),
+            theme_dark: "dicda".to_string(),
             tick_sounds_during_work: false,
             tick_sounds_during_break: false,
             time_work_secs: 25 * 60,
@@ -141,10 +145,12 @@ impl Default for Settings {
             window_opacity: 0.85,
             overlay_mode_enabled: true,
             overlay_locked_clickthrough: true,
-            overlay_min_size: 90,
+            overlay_min_size: 120,
             overlay_max_size: 420,
+            overlay_size: 220,
             overlay_progress_color_start: "#ff7a45".to_string(),
             overlay_progress_color_end: "#ff2d75".to_string(),
+            overlay_hover_activation_ms: 3000,
         }
     }
 }
@@ -201,9 +207,24 @@ pub fn load(conn: &Connection) -> Result<Settings> {
 
     log::debug!("[settings] loaded {} keys from db", map.len());
     let d = Settings::default();
-    let overlay_min_size = parse_u32(&map, "overlay_min_size", d.overlay_min_size).clamp(90, 800);
+    let overlay_min_size = parse_u32(&map, "overlay_min_size", d.overlay_min_size).clamp(120, 800);
     let overlay_max_size =
         parse_u32(&map, "overlay_max_size", d.overlay_max_size).clamp(overlay_min_size, 1000);
+    let overlay_size = parse_u32(
+        &map,
+        "overlay_size",
+        parse_opt_u32(&map, "window_width")
+            .zip(parse_opt_u32(&map, "window_height"))
+            .map(|(w, h)| w.max(h))
+            .unwrap_or(d.overlay_size),
+    )
+    .clamp(overlay_min_size, overlay_max_size);
+    let overlay_hover_activation_ms = parse_u32(
+        &map,
+        "overlay_hover_activation_ms",
+        d.overlay_hover_activation_ms,
+    )
+    .clamp(3000, 10000);
 
     Ok(Settings {
         always_on_top: parse_bool(&map, "always_on_top", d.always_on_top),
@@ -294,6 +315,7 @@ pub fn load(conn: &Connection) -> Result<Settings> {
         ),
         overlay_min_size,
         overlay_max_size,
+        overlay_size,
         overlay_progress_color_start: map
             .get("overlay_progress_color_start")
             .cloned()
@@ -302,6 +324,7 @@ pub fn load(conn: &Connection) -> Result<Settings> {
             .get("overlay_progress_color_end")
             .cloned()
             .unwrap_or(d.overlay_progress_color_end),
+        overlay_hover_activation_ms,
     })
 }
 
@@ -393,8 +416,8 @@ mod tests {
         assert!(!s.websocket_enabled);
         assert_eq!(s.websocket_port, 1314);
         assert_eq!(s.theme_mode, "auto");
-        assert_eq!(s.theme_light, "Pomotroid Light");
-        assert_eq!(s.theme_dark, "Pomotroid");
+        assert_eq!(s.theme_light, "dicda Light");
+        assert_eq!(s.theme_dark, "dicda");
         assert_eq!(s.language, "auto");
         assert!(!s.verbose_logging);
     }

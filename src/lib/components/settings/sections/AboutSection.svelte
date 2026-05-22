@@ -9,7 +9,7 @@
   import * as m from '$paraglide/messages.js';
 
   const BASE_VERSION = '1.0.0';
-  const REPO = 'https://github.com/Splode/pomotroid';
+  const REPO = 'https://github.com/Splode/dicda';
 
   let version = $state('...');
 
@@ -77,21 +77,36 @@
       height="64"
       viewBox="0 0 256 256"
       xmlns="http://www.w3.org/2000/svg"
-      aria-label="Pomotroid logo"
+      aria-label="dicda alarm clock logo"
     >
-      <circle fill="var(--color-background-light)" cx="128" cy="128" r="126.81" />
+      <circle fill="var(--color-background-light)" cx="128" cy="128" r="116" />
+      <path
+        fill="none"
+        stroke="var(--color-short-round)"
+        stroke-width="16"
+        stroke-linecap="round"
+        d="M82 45 56 70M174 45l26 25M88 218l-18 24M168 218l18 24"
+      />
       <circle
         fill="none"
         stroke="var(--color-focus-round)"
-        stroke-width="40"
-        stroke-linecap="round"
+        stroke-width="16"
         cx="128"
-        cy="128"
-        r="73.31"
+        cy="136"
+        r="74"
       />
+      <path
+        fill="none"
+        stroke="var(--color-foreground)"
+        stroke-width="14"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M128 90v50l34 22"
+      />
+      <circle fill="var(--color-foreground)" cx="128" cy="140" r="9" />
     </svg>
     <div>
-      <h2 class="name">Pomotroid</h2>
+      <h2 class="name">dicda</h2>
       <p class="version">Version {version}</p>
     </div>
   </div>

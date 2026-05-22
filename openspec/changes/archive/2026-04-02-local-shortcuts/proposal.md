@@ -1,10 +1,10 @@
 ## Why
 
-Pomotroid already supports global shortcuts that work system-wide, but lacks any keyboard shortcuts that activate while the app window is focused. Users who keep the app visible on screen have no way to control the timer, volume, or round state with the keyboard — they must reach for the mouse even for common actions like pause/resume or volume adjustment.
+dicda already supports global shortcuts that work system-wide, but lacks any keyboard shortcuts that activate while the app window is focused. Users who keep the app visible on screen have no way to control the timer, volume, or round state with the keyboard — they must reach for the mouse even for common actions like pause/resume or volume adjustment.
 
 ## What Changes
 
-- Introduce a new local shortcuts system: a set of keyboard shortcuts active only while a Pomotroid window has focus
+- Introduce a new local shortcuts system: a set of keyboard shortcuts active only while a dicda window has focus
 - Default bindings: Space (pause/resume), Left Arrow (reset current round), Right Arrow (skip round), Down Arrow (volume down), Up Arrow (volume up), M (mute toggle), F11 (fullscreen toggle)
 - All local shortcuts are re-mappable in Settings → Shortcuts alongside global shortcuts
 - "Reset All Settings" resets local shortcut bindings to defaults along with all other settings

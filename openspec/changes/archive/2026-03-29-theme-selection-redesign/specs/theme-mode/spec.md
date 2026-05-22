@@ -2,7 +2,7 @@
 
 ### Requirement: Independent light and dark theme pickers
 
-The system SHALL maintain two independent theme selections: `theme_light` and `theme_dark`. Both pickers SHALL display all available themes and SHALL be accessible via the collapsible theme picker UI. Defaults SHALL be `"Pomotroid"` for both.
+The system SHALL maintain two independent theme selections: `theme_light` and `theme_dark`. Both pickers SHALL display all available themes and SHALL be accessible via the collapsible theme picker UI. Defaults SHALL be `"dicda"` for both.
 
 #### Scenario: Light theme selection when Light mode active
 

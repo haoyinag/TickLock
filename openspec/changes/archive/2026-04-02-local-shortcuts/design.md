@@ -1,6 +1,6 @@
 ## Context
 
-Pomotroid has an existing global shortcuts system that registers OS-level hotkeys via `tauri-plugin-global-shortcut`. Those shortcuts are stored in SQLite, exposed through the `Settings` struct, and editable in the Settings → Shortcuts section (`ShortcutsSection.svelte`).
+dicda has an existing global shortcuts system that registers OS-level hotkeys via `tauri-plugin-global-shortcut`. Those shortcuts are stored in SQLite, exposed through the `Settings` struct, and editable in the Settings → Shortcuts section (`ShortcutsSection.svelte`).
 
 Local shortcuts are a different, complementary mechanism: they fire only while the app window has focus, need no OS-level registration, and are handled entirely in the frontend via standard `keydown` event listeners. The actions they invoke (timer toggle, skip, reset, volume change, mute, fullscreen) are already available through existing IPC commands.
 
@@ -8,7 +8,7 @@ Local shortcuts are a different, complementary mechanism: they fire only while t
 
 **Goals:**
 
-- 7 default local shortcuts active whenever any Pomotroid window has focus
+- 7 default local shortcuts active whenever any dicda window has focus
 - All 7 bindings are user-configurable via Settings → Shortcuts
 - Bindings persist in SQLite alongside global shortcut bindings
 - "Reset All Settings" resets local bindings to defaults
